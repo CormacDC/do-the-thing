@@ -1,2 +1,2 @@
-# do-one-thing
-Do One Thing to-do app
+# do-the-thing
+Do The Thing to-do app

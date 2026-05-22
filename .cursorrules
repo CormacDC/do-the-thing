@@ -1,0 +1,8 @@
+- This is an Expo React Native project targeting iOS first, Android second
+- Use TypeScript strictly throughout
+- Use Supabase for all backend interactions
+- Use expo-notifications for all push notification scheduling
+- Never suggest bare React Native solutions when an Expo SDK equivalent exists
+- UI should be minimalist: no unnecessary components, muted palette, clean typography
+- All new features should include error handling and loading states
+- Follow this folder structure: /app (screens), /components, /hooks, /lib (supabase client, twilio helpers), /types

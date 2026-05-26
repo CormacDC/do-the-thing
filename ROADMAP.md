@@ -31,6 +31,7 @@
       - 1 hour before (if deadline is far enough out)
       - At the deadline
       - Every 30 minutes after, up to 3 hours post-deadline
+- [ ] Timer is displayed on task list screen representing time until deadline in dd:hh:mm:ss format
 - [ ] Only future-dated notifications are scheduled
 - [ ] Notification copy escalates in urgency after deadline passes
 - [ ] All pending notifications cancelled on qualifying task completion

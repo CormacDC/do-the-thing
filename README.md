@@ -74,7 +74,7 @@ During onboarding, you select one contact from your phone as your accountability
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 20.19+ (required for Expo SDK 56)
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
 - A [Supabase](https://supabase.com) account and project
 - A [Twilio](https://twilio.com) account with a phone number and messaging scheduling enabled

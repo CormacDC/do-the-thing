@@ -6,3 +6,4 @@
 - UI should be minimalist: no unnecessary components, muted palette, clean typography
 - All new features should include error handling and loading states
 - Follow this folder structure: /app (screens), /components, /hooks, /lib (supabase client, twilio helpers), /types
+- Always use LF line endings in all generated files

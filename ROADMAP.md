@@ -2,13 +2,14 @@
 
 ## ✅ Sprint 0 — Project Setup (Current)
 
-- [ ] Expo project initialized with TypeScript
-- [ ] Folder structure established (/app, /components, /hooks, /lib, /types)
+- [x] Expo project initialized with TypeScript
+- [x] Folder structure established (/app, /components, /hooks, /lib, /types)
 - [x] .cursorrules file in place
-- [ ] Core navigation scaffolded
-- [ ] Task list screen scaffolded (UI only, no logic yet)
-- [ ] Supabase project created and client configured in /lib
-- [ ] Environment variables set up (.env, .env.example)
+- [x] Core navigation scaffolded
+- [x] Task list screen scaffolded (UI only, no logic yet)
+- [x] Supabase project created and client configured in /lib
+- [x] Environment variables set up (.env, .env.example)
+- [x] .gitignore file in place, set up to keep the project secure and reduce file noise in the repository
 
 ## 📋 Sprint 1 — Task List Logic
 
@@ -67,7 +68,8 @@
 ## 📋 Sprint 5 — Auth & User Accounts
 
 - [ ] Supabase Auth configured
-- [ ] Sign up / sign in screens
+- [ ] OAuth login implemented via Supabase's OAuth client library, supporting Google and Apple, and custom email/passowrd login
+- [ ] Sign up / sign in screens with OAuth provider buttons
 - [ ] User session managed in app
 - [ ] RLS policies written for all tables (tasks, deadlines, users)
 - [ ] Onboarding only shown to new users

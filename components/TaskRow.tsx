@@ -5,18 +5,20 @@ import type { Task } from '@/types/task';
 
 type TaskRowProps = {
   task: Task;
+  onToggleComplete: (id: string) => void;
+  onTogglePriority: (id: string) => void;
 };
 
-export function TaskRow({ task }: TaskRowProps) {
+export function TaskRow({ task, onToggleComplete, onTogglePriority }: TaskRowProps) {
   return (
     <View style={styles.row}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: task.isComplete }}
+        accessibilityLabel={task.isComplete ? 'Mark as incomplete' : 'Mark as complete'}
+        hitSlop={8}
         style={[styles.checkbox, task.isComplete && styles.checkboxComplete]}
-        onPress={() => {
-          // Sprint 1: toggle completion
-        }}
+        onPress={() => onToggleComplete(task.id)}
       >
         {task.isComplete ? <Text style={styles.checkmark}>✓</Text> : null}
       </Pressable>
@@ -30,11 +32,11 @@ export function TaskRow({ task }: TaskRowProps) {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={task.isPriority ? 'Priority task' : 'Mark as priority'}
+        accessibilityState={{ selected: task.isPriority }}
+        accessibilityLabel={task.isPriority ? 'Remove priority' : 'Mark as priority'}
+        hitSlop={8}
         style={[styles.priorityButton, task.isPriority && styles.priorityActive]}
-        onPress={() => {
-          // Sprint 1: toggle priority
-        }}
+        onPress={() => onTogglePriority(task.id)}
       >
         <Text style={[styles.priorityLabel, task.isPriority && styles.priorityLabelActive]}>
           {task.isPriority ? 'Priority' : 'Set'}

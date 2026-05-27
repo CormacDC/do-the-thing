@@ -9,17 +9,20 @@ import {
 } from 'react-native';
 
 import { TaskRow } from '@/components/TaskRow';
+import { useTasks } from '@/hooks/useTasks';
 import { colors, spacing, typography } from '@/lib/theme';
-import type { Task } from '@/types/task';
-
-const DEMO_TASKS: Task[] = [
-  { id: '1', title: 'Finish the proposal draft', isPriority: true, isComplete: false },
-  { id: '2', title: 'Reply to the client email', isPriority: false, isComplete: false },
-  { id: '3', title: 'Go for a 20-minute walk', isPriority: false, isComplete: true },
-];
 
 export function TaskList() {
+  const { tasks, addTask, toggleComplete, togglePriority } = useTasks();
   const [draft, setDraft] = useState('');
+
+  const canSubmit = draft.trim().length > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    addTask(draft);
+    setDraft('');
+  };
 
   return (
     <View style={styles.container}>
@@ -31,15 +34,26 @@ export function TaskList() {
       </View>
 
       <FlatList
-        data={DEMO_TASKS}
+        data={tasks}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <TaskRow task={item} />}
+        renderItem={({ item }) => (
+          <TaskRow
+            task={item}
+            onToggleComplete={toggleComplete}
+            onTogglePriority={togglePriority}
+          />
+        )}
         style={styles.list}
-        contentContainerStyle={styles.listContent}
-        ListFooterComponent={
-          <Text style={styles.hint}>
-            Add a task. Set a deadline. Your partner gets the text if you don&apos;t.
-          </Text>
+        contentContainerStyle={
+          tasks.length === 0 ? styles.listContentEmpty : styles.listContent
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Nothing yet.</Text>
+            <Text style={styles.emptyBody}>
+              Add a task. Set a deadline. Your partner gets the text if you don&apos;t.
+            </Text>
+          </View>
         }
       />
 
@@ -50,14 +64,21 @@ export function TaskList() {
           placeholderTextColor={colors.textMuted}
           value={draft}
           onChangeText={setDraft}
-          editable={false}
+          onSubmitEditing={handleSubmit}
+          returnKeyType="done"
+          blurOnSubmit={false}
+          autoCorrect={false}
         />
         <Pressable
-          style={[styles.addButton, !draft && styles.addButtonDisabled]}
-          disabled
-          onPress={() => {
-            // Sprint 1: add task
-          }}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canSubmit }}
+          style={({ pressed }) => [
+            styles.addButton,
+            !canSubmit && styles.addButtonDisabled,
+            pressed && canSubmit && styles.addButtonPressed,
+          ]}
+          disabled={!canSubmit}
+          onPress={handleSubmit}
         >
           <Text style={styles.addButtonLabel}>Add</Text>
         </Pressable>
@@ -89,11 +110,24 @@ const styles = StyleSheet.create({
   listContent: {
     flexGrow: 1,
   },
-  hint: {
+  listContentEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  empty: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  emptyTitle: {
+    ...typography.label,
+    color: colors.text,
+  },
+  emptyBody: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.lg,
-    paddingBottom: spacing.md,
+    textAlign: 'center',
+    maxWidth: 280,
   },
   inputRow: {
     flexDirection: 'row',
@@ -120,7 +154,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
   },
   addButtonDisabled: {
-    opacity: 0.4,
+    opacity: 0.3,
+  },
+  addButtonPressed: {
+    opacity: 0.85,
   },
   addButtonLabel: {
     ...typography.label,

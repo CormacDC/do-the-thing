@@ -1,6 +1,6 @@
 # Do The Thing — Build Roadmap
 
-## ✅ Sprint 0 — Project Setup (Current)
+## ✅ Sprint 0 — Project Setup
 
 - [x] Expo project initialized with TypeScript
 - [x] Folder structure established (/app, /components, /hooks, /lib, /types)
@@ -11,14 +11,12 @@
 - [x] Environment variables set up (.env, .env.example)
 - [x] .gitignore file in place, set up to keep the project secure and reduce file noise in the repository
 
-## 📋 Sprint 1 — Task List Logic
+## 📋 Sprint 1 — Task List Logic (Current)
 
 - [ ] Add task functionality
 - [ ] Display task list
 - [ ] Mark one or more tasks as Priority
 - [ ] Mark task as complete
-- [ ] Qualifying task logic implemented (any task if no Priority exists;
-      any Priority task if one or more exist)
 - [ ] Task data persisted to Supabase tasks table
 
 ## 📋 Sprint 2 — Task Timer & Notifications
@@ -35,7 +33,8 @@
 - [ ] Only future-dated notifications are scheduled
 - [ ] Notification copy escalates in urgency after deadline passes
 - [ ] All pending notifications cancelled on qualifying task completion
-- [ ] Deadline reset flow: on qualifying completion, fresh deadline of
+- [ ] Deadline reset flow: on qualifying task completion (any task if no Priority exists;
+      any Priority task if one or more exist), fresh deadline of
       same original duration is created from current moment and
       notification sequence is rescheduled
 

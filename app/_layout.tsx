@@ -1,14 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-import '@/lib/supabase';
+import { AuthProvider } from '@/lib/auth';
 import { colors } from '@/lib/theme';
 
 // Future routes: /onboarding (Sprint 4), /sign-in (Sprint 5)
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -16,6 +16,6 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       />
-    </>
+    </AuthProvider>
   );
 }

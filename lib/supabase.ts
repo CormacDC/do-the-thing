@@ -1,4 +1,8 @@
+import 'react-native-url-polyfill/auto';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { AppState } from 'react-native';
 
 import type { Database } from '@/types/database';
 
@@ -16,8 +20,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase: SupabaseClient<Database> | null =
   supabaseUrl && supabaseAnonKey
-    ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+    ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          storage: AsyncStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      })
     : null;
+
+// Pause / resume Supabase's auto token refresh based on app foreground state.
+// Recommended by Supabase for React Native to avoid wasted work in background.
+if (supabase) {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 export function getSupabase(): SupabaseClient<Database> {
   if (!supabase) {

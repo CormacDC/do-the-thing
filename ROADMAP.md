@@ -17,7 +17,8 @@
 - [x] Display task list
 - [x] Mark one or more tasks as Priority
 - [x] Mark task as complete
-- [ ] Task data persisted to Supabase tasks table
+- [x] RLS exists for anonymous sign-ins for testing purposes
+- [x] Task data persisted to Supabase tasks table
 
 ## 📋 Sprint 2 — Task Timer & Notifications
 
@@ -71,7 +72,7 @@
 - [ ] OAuth login implemented via Supabase's OAuth client library, supporting Google and Apple, and custom email/passowrd login
 - [ ] Sign up / sign in screens with OAuth provider buttons
 - [ ] User session managed in app
-- [ ] RLS policies written for all tables (tasks, deadlines, users)
+- [ ] RLS policies written/updated if needed for all tables (tasks, deadlines, users) to account for new login methods
 - [ ] Onboarding only shown to new users
 
 ## 📋 Sprint 6 — Polish & Launch Prep

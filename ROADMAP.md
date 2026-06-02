@@ -13,10 +13,10 @@
 
 ## 📋 Sprint 1 — Task List Logic (Current)
 
-- [ ] Add task functionality
-- [ ] Display task list
-- [ ] Mark one or more tasks as Priority
-- [ ] Mark task as complete
+- [x] Add task functionality
+- [x] Display task list
+- [x] Mark one or more tasks as Priority
+- [x] Mark task as complete
 - [ ] Task data persisted to Supabase tasks table
 
 ## 📋 Sprint 2 — Task Timer & Notifications

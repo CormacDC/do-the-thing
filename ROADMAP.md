@@ -11,7 +11,7 @@
 - [x] Environment variables set up (.env, .env.example)
 - [x] .gitignore file in place, set up to keep the project secure and reduce file noise in the repository
 
-## 📋 Sprint 1 — Task List Logic (Current)
+## 📋 Sprint 1 — Task List Logic
 
 - [x] Add task functionality
 - [x] Display task list
@@ -20,29 +20,74 @@
 - [x] RLS exists for anonymous sign-ins for testing purposes
 - [x] Task data persisted to Supabase tasks table
 
-## 📋 Sprint 2 — Task Timer & Notifications
+## 📋 Sprint 2 — Task Timer & Notifications (Current)
 
-- [ ] Deadline picker on task list screen
-- [ ] Deadline timestamp recorded in Supabase deadlines table
+### Supabase
+- [ ] Deadlines table created with schema:
+      id, user_id, deadline_at, twilio_message_sid (nullable & unused until sprint 3),
+      status, created_at, updated_at
+- [ ] Unique constraint on user_id (one deadline record per user, ever)
+- [ ] RLS enabled on deadlines table with policies:
+      users can only select, insert, and update their own deadline record
+- [ ] updated_at trigger applied to deadlines table (same pattern as tasks)
+- [ ] TypeScript types regenerated to include deadlines table
+
+### App State
+- [ ] App state model implemented as a TypeScript enum with four values:
+        EMPTY    — no tasks present
+        PENDING  — at least one task exists, deadline not yet set
+        ACTIVE   — deadline is set and running
+        COMPLETE — all tasks completed, eligible for fresh start
+- [ ] App state is derived from Supabase on session start and kept in
+      sync with all subsequent task and deadline operations
+- [ ] State transitions:
+        EMPTY    → PENDING   first task added
+        PENDING  → ACTIVE    user sets deadline
+        ACTIVE   → ACTIVE    deadline passes without completion:
+                             deadline_at advances by original duration,
+                             updated_at refreshed
+        ACTIVE   → COMPLETE  all tasks completed
+        COMPLETE → PENDING   new task added
+        COMPLETE → EMPTY     all completed tasks cleared, no new tasks added
+
+### Deadline Picker
+- [ ] Deadline picker triggered automatically when app transitions
+      from EMPTY to PENDING (i.e. first task added)
+- [ ] Deadline picker re-prompted on app open if status is PENDING
+- [ ] Deadline picker re-prompted when status transitions to COMPLETE
+      and a new task is subsequently added
+- [ ] Deadline record inserted into Supabase when user confirms deadline,
+      status set to ACTIVE
+- [ ] Deadline modification locked out in all states except the
+      COMPLETE → PENDING transition
+
+### Countdown Timer
+- [ ] Countdown timer displayed on task list screen in dd:hh:mm:ss format
+- [ ] Timer visible only when app state is ACTIVE
+- [ ] Timer counts down to deadline_at in real time
+- [ ] When deadline_at passes, timer display reflects overdue duration
+      (e.g. "00:00:00:00 — overdue by 00:02:34") without a status change
+- [ ] Timer updates correctly after deadline_at advances on expiry
+
+### Notifications
 - [ ] expo-notifications permissions requested during onboarding
-- [ ] Notification sequence scheduled at deadline-setting time:
-      - 24 hours before (if deadline is far enough out)
-      - 1 hour before (if deadline is far enough out)
-      - At the deadline
-      - Every 30 minutes after, up to 3 hours post-deadline
-- [ ] Timer is displayed on task list screen representing time until deadline in dd:hh:mm:ss format
-- [ ] Only future-dated notifications are scheduled
-- [ ] Notification copy escalates in urgency after deadline passes
-- [ ] All pending notifications cancelled on qualifying task completion
-- [ ] Deadline reset flow: on qualifying task completion (any task if no Priority exists;
-      any Priority task if one or more exist), fresh deadline of
-      same original duration is created from current moment and
-      notification sequence is rescheduled
+- [ ] Notification sequence pre-scheduled at deadline-setting time:
+        24 hours before  (only if deadline is far enough out)
+        1 hour before    (only if deadline is far enough out)
+        At the deadline
+- [ ] Only future-dated notifications are scheduled relative to
+      the moment the deadline is set
+- [ ] Notification copy escalates in urgency after the deadline passes
+- [ ] All pending notifications cancelled on all-tasks-complete
+- [ ] Notification sequence rescheduled when deadline_at advances
+      on expiry (previous notifications cancelled, new ones scheduled
+      from the new deadline_at)
+- [ ] Notification sequence rescheduled when a new deadline is set
+      after a COMPLETE → PENDING transition
 
 ## 📋 Sprint 3 — Accountability Backend
 
-- [ ] Supabase deadlines table schema finalized:
-      id, user_id, deadline_at, twilio_message_sid, status, created_at
+- [ ] Supabase deadlines table schema updated to include twilio_message_sid
 - [ ] Twilio account configured with a phone number
 - [ ] Supabase Edge Function: schedule Twilio SMS at deadline-setting time
       via Twilio's message scheduling API
@@ -51,11 +96,9 @@
       "[User's name] wanted you to know they still haven't completed
       any tasks!"
 - [ ] Supabase Edge Function: cancel scheduled Twilio SMS via stored SID
-      on qualifying task completion
+      on qualifying task completion and schedule new SMS
 - [ ] Graceful handling if SMS already sent (no cancellation attempted,
       late completion acknowledged in UI without error)
-- [ ] Deadline reset flow: on qualifying completion, new deadline record
-      created, new Twilio SMS scheduled, old record marked cancelled
 
 ## 📋 Sprint 4 — Accountability Partner Setup & Onboarding
 
@@ -83,3 +126,7 @@
 - [ ] EAS Build configured for custom dev client
 - [ ] TestFlight internal testing
 - [ ] App Store listing prep
+
+### Post-Launch Consideration
+- [ ] Deadline audit log table for analytics and debugging if
+      user retention data becomes valuable

@@ -23,51 +23,52 @@
 ## 📋 Sprint 2 — Task Timer & Notifications (Current)
 
 ### Supabase
-- [ ] Deadlines table created with schema:
+- [x] Deadlines table created with schema:
       id, user_id, deadline_at, twilio_message_sid (nullable & unused until sprint 3),
       status, created_at, updated_at
-- [ ] Unique constraint on user_id (one deadline record per user, ever)
-- [ ] RLS enabled on deadlines table with policies:
+- [x] Unique constraint on user_id (one deadline record per user, ever)
+- [x] RLS enabled on deadlines table with policies:
       users can only select, insert, and update their own deadline record
-- [ ] updated_at trigger applied to deadlines table (same pattern as tasks)
-- [ ] TypeScript types regenerated to include deadlines table
+- [x] updated_at trigger applied to deadlines table (same pattern as tasks)
+- [x] TypeScript types regenerated to include deadlines table
 
 ### App State
-- [ ] App state model implemented as a TypeScript enum with four values:
+- [x] App state model implemented as a TypeScript enum with four values:
         EMPTY    — no tasks present
         PENDING  — at least one task exists, deadline not yet set
         ACTIVE   — deadline is set and running
         COMPLETE — all tasks completed, eligible for fresh start
-- [ ] App state is derived from Supabase on session start and kept in
+- [x] App state is derived from Supabase on session start and kept in
       sync with all subsequent task and deadline operations
-- [ ] State transitions:
+- [x] State transitions:
         EMPTY    → PENDING   first task added
         PENDING  → ACTIVE    user sets deadline
         ACTIVE   → ACTIVE    deadline passes without completion:
                              deadline_at advances by original duration,
+                             updated_at refreshed
+        ACTIVE   → ACTIVE    qualifying task completed while other tasks remain:
+                             deadline_at resets from current time by original duration,
                              updated_at refreshed
         ACTIVE   → COMPLETE  all tasks completed
         COMPLETE → PENDING   new task added
         COMPLETE → EMPTY     all completed tasks cleared, no new tasks added
 
 ### Deadline Picker
-- [ ] Deadline picker triggered automatically when app transitions
+- [x] Deadline picker triggered automatically when app transitions
       from EMPTY to PENDING (i.e. first task added)
-- [ ] Deadline picker re-prompted on app open if status is PENDING
-- [ ] Deadline picker re-prompted when status transitions to COMPLETE
+- [x] Deadline picker re-prompted on app open if app state is PENDING
+- [x] Deadline picker re-prompted when status transitions to COMPLETE
       and a new task is subsequently added
-- [ ] Deadline record inserted into Supabase when user confirms deadline,
+- [x] Deadline record inserted into Supabase when user confirms deadline,
       status set to ACTIVE
-- [ ] Deadline modification locked out in all states except the
+- [x] Deadline modification locked out in all states except the
       COMPLETE → PENDING transition
 
 ### Countdown Timer
-- [ ] Countdown timer displayed on task list screen in dd:hh:mm:ss format
-- [ ] Timer visible only when app state is ACTIVE
-- [ ] Timer counts down to deadline_at in real time
-- [ ] When deadline_at passes, timer display reflects overdue duration
-      (e.g. "00:00:00:00 — overdue by 00:02:34") without a status change
-- [ ] Timer updates correctly after deadline_at advances on expiry
+- [x] Countdown timer displayed on task list screen in dd:hh:mm:ss format
+- [x] Timer visible only when app state is ACTIVE
+- [x] Timer counts down to deadline_at in real time
+- [x] Timer updates correctly after deadline_at advances on expiry
 
 ### Notifications
 - [ ] expo-notifications permissions requested during onboarding

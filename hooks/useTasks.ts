@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
-import type { TaskRow } from '@/types/database';
+import type { Tables } from '@/types/database';
 import type { Task } from '@/types/task';
+
+type TaskRow = Tables<'tasks'>;
 
 function createTemporaryTaskId(): string {
   return `temp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
@@ -24,7 +26,7 @@ export type UseTasksResult = {
   mutationError: string | null;
   dismissMutationError: () => void;
   addTask: (title: string) => Promise<void>;
-  toggleComplete: (id: string) => Promise<void>;
+  toggleComplete: (id: string) => Promise<boolean>;
   togglePriority: (id: string) => Promise<void>;
   retry: () => void;
 };
@@ -123,11 +125,11 @@ export function useTasks(userId: string | null): UseTasksResult {
 
   const toggleComplete = useCallback(
     async (id: string) => {
-      if (!supabase || !userId) return;
+      if (!supabase || !userId) return false;
 
       const previous = tasksRef.current;
       const current = previous.find((t) => t.id === id);
-      if (!current) return;
+      if (!current) return false;
 
       const nextComplete = !current.isComplete;
       const completedAt = nextComplete ? new Date().toISOString() : null;
@@ -146,7 +148,10 @@ export function useTasks(userId: string | null): UseTasksResult {
         if (__DEV__) console.warn('[Do The Thing] toggle complete failed:', updateError);
         setTasks(previous);
         setMutationError("We couldn't update that task. Try again.");
+        return false;
       }
+
+      return true;
     },
     [userId],
   );

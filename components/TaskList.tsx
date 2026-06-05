@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,15 +9,21 @@ import {
   View,
 } from 'react-native';
 
+import { Countdown } from '@/components/Countdown';
+import { DeadlinePicker } from '@/components/DeadlinePicker';
 import { TaskRow } from '@/components/TaskRow';
+import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
-import { useTasks } from '@/hooks/useTasks';
 import { colors, spacing, typography } from '@/lib/theme';
+import { AppState } from '@/types/appState';
+import type { Task } from '@/types/task';
 
 export function TaskList() {
   const auth = useAuth();
   const {
+    state,
     tasks,
+    deadline,
     loading,
     error,
     mutationError,
@@ -25,17 +31,36 @@ export function TaskList() {
     addTask,
     toggleComplete,
     togglePriority,
+    confirmDeadline,
+    advanceDeadline,
     retry,
-  } = useTasks(auth.userId);
+  } = useAppState();
 
   const [draft, setDraft] = useState('');
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [settingDeadline, setSettingDeadline] = useState(false);
+
   const canSubmit = draft.trim().length > 0 && !!auth.userId;
+
+  // The deadline picker is the only deadline affordance, and it surfaces
+  // exactly when the app is PENDING: first task added (EMPTY → PENDING),
+  // on app open while PENDING, and after a new task following COMPLETE.
+  useEffect(() => {
+    setPickerVisible(state === AppState.PENDING);
+  }, [state]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     const value = draft;
     setDraft('');
     await addTask(value);
+  };
+
+  const handleConfirmDeadline = async (durationSeconds: number) => {
+    setSettingDeadline(true);
+    await confirmDeadline(durationSeconds);
+    setSettingDeadline(false);
+    setPickerVisible(false);
   };
 
   return (
@@ -58,6 +83,13 @@ export function TaskList() {
           <Text style={styles.bannerDismiss}>Dismiss</Text>
         </Pressable>
       ) : null}
+
+      <TimerArea
+        state={state}
+        deadlineAt={deadline?.deadlineAt ?? null}
+        onExpire={advanceDeadline}
+        onOpenPicker={() => setPickerVisible(true)}
+      />
 
       <Body
         auth={auth}
@@ -96,13 +128,48 @@ export function TaskList() {
           <Text style={styles.addButtonLabel}>Add</Text>
         </Pressable>
       </View>
+
+      <DeadlinePicker
+        visible={pickerVisible}
+        submitting={settingDeadline}
+        onConfirm={handleConfirmDeadline}
+        onDismiss={() => setPickerVisible(false)}
+      />
     </View>
   );
 }
 
+type TimerAreaProps = {
+  state: AppState;
+  deadlineAt: string | null;
+  onExpire: () => void;
+  onOpenPicker: () => void;
+};
+
+function TimerArea({ state, deadlineAt, onExpire, onOpenPicker }: TimerAreaProps) {
+  if (state === AppState.ACTIVE && deadlineAt) {
+    return <Countdown deadlineAt={deadlineAt} onExpire={onExpire} />;
+  }
+
+  if (state === AppState.PENDING) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.setDeadline, pressed && styles.setDeadlinePressed]}
+        onPress={onOpenPicker}
+      >
+        <Text style={styles.setDeadlineLabel}>Set a deadline</Text>
+        <Text style={styles.setDeadlineHint}>Your clock starts once you choose.</Text>
+      </Pressable>
+    );
+  }
+
+  return null;
+}
+
 type BodyProps = {
   auth: ReturnType<typeof useAuth>;
-  tasks: ReturnType<typeof useTasks>['tasks'];
+  tasks: Task[];
   loading: boolean;
   error: string | null;
   onToggleComplete: (id: string) => void;
@@ -240,6 +307,28 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.priority,
     fontWeight: '600',
+  },
+  setDeadline: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.inputBackground,
+    gap: spacing.xs,
+  },
+  setDeadlinePressed: {
+    opacity: 0.7,
+  },
+  setDeadlineLabel: {
+    ...typography.label,
+    color: colors.text,
+  },
+  setDeadlineHint: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   list: {
     flex: 1,

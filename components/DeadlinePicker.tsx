@@ -21,15 +21,25 @@ const PRESETS: { label: string; seconds: number }[] = [
 type DeadlinePickerProps = {
   visible: boolean;
   submitting?: boolean;
+  /** When true, the picker acknowledges that the previous deadline expired. */
+  expired?: boolean;
+  /**
+   * When true, the user may back out — used for the new-task flow, where
+   * canceling discards the unsaved task. Setting a deadline itself is never
+   * optional; this only abandons adding the task.
+   */
+  cancelable?: boolean;
   onConfirm: (durationSeconds: number) => void;
-  onDismiss: () => void;
+  onCancel?: () => void;
 };
 
 export function DeadlinePicker({
   visible,
   submitting = false,
+  expired = false,
+  cancelable = false,
   onConfirm,
-  onDismiss,
+  onCancel,
 }: DeadlinePickerProps) {
   const [customHours, setCustomHours] = useState('');
 
@@ -37,10 +47,21 @@ export function DeadlinePicker({
   const customSeconds = Math.round(parsedHours * 3600);
   const customValid = Number.isFinite(customSeconds) && customSeconds > 0;
 
+  const title = expired ? 'Deadline passed' : 'Set your deadline';
+  const subtitle = expired
+    ? 'Your deadline passed and your accountability partner was notified. Set a new deadline to keep going.'
+    : 'Choose how long you have. Miss it, and your partner hears about it.';
+
   const handleConfirm = (seconds: number) => {
     if (submitting) return;
     onConfirm(seconds);
     setCustomHours('');
+  };
+
+  const handleCancel = () => {
+    if (submitting) return;
+    setCustomHours('');
+    onCancel?.();
   };
 
   return (
@@ -48,14 +69,13 @@ export function DeadlinePicker({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onDismiss}
+      // Non-dismissible: hardware back / swipe only backs out when cancelable.
+      onRequestClose={cancelable ? handleCancel : undefined}
     >
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Set your deadline</Text>
-          <Text style={styles.subtitle}>
-            Choose how long you have. Miss it, and your partner hears about it.
-          </Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
 
           <View style={styles.options}>
             {PRESETS.map((preset) => (
@@ -101,14 +121,16 @@ export function DeadlinePicker({
             </Pressable>
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={submitting}
-            style={styles.dismiss}
-            onPress={onDismiss}
-          >
-            <Text style={styles.dismissLabel}>Not yet</Text>
-          </Pressable>
+          {cancelable ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              style={styles.dismiss}
+              onPress={handleCancel}
+            >
+              <Text style={styles.dismissLabel}>Cancel</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>

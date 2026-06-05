@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -32,35 +32,59 @@ export function TaskList() {
     toggleComplete,
     togglePriority,
     confirmDeadline,
-    advanceDeadline,
+    expireDeadline,
     retry,
   } = useAppState();
 
   const [draft, setDraft] = useState('');
-  const [pickerVisible, setPickerVisible] = useState(false);
+  // A task typed while no deadline is running is held here until the user picks
+  // a deadline — the two are committed together so a task never exists without
+  // one. Null means no add is in flight.
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const [settingDeadline, setSettingDeadline] = useState(false);
 
-  const canSubmit = draft.trim().length > 0 && !!auth.userId;
+  const isExpired = state === AppState.EXPIRED;
+  // Tasks can only be toggled while a deadline is actively running.
+  const tasksLocked = state !== AppState.ACTIVE;
+  // Adding is blocked while EXPIRED — a new deadline must be set first.
+  const canSubmit = draft.trim().length > 0 && !!auth.userId && !isExpired;
+  // The picker is forced in EXPIRED, and shown during the new-task flow.
+  const pickerVisible = isExpired || pendingTitle !== null;
 
-  // The deadline picker is the only deadline affordance, and it surfaces
-  // exactly when the app is PENDING: first task added (EMPTY → PENDING),
-  // on app open while PENDING, and after a new task following COMPLETE.
-  useEffect(() => {
-    setPickerVisible(state === AppState.PENDING);
-  }, [state]);
-
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) return;
-    const value = draft;
+    const value = draft.trim();
     setDraft('');
-    await addTask(value);
+
+    if (state === AppState.ACTIVE) {
+      // A deadline is already running — add immediately.
+      void addTask(value);
+      return;
+    }
+
+    // EMPTY or COMPLETE: hold the task and force a deadline before saving it.
+    setPendingTitle(value);
   };
 
   const handleConfirmDeadline = async (durationSeconds: number) => {
     setSettingDeadline(true);
-    await confirmDeadline(durationSeconds);
+
+    if (pendingTitle !== null) {
+      // New-task flow: commit the task and its deadline together. Firing both
+      // optimistic updates in the same tick lands directly in ACTIVE with no
+      // COMPLETE/EXPIRED flicker in between.
+      await Promise.all([addTask(pendingTitle), confirmDeadline(durationSeconds)]);
+      setPendingTitle(null);
+    } else {
+      // EXPIRED flow: set a new deadline for the existing tasks.
+      await confirmDeadline(durationSeconds);
+    }
+
     setSettingDeadline(false);
-    setPickerVisible(false);
+  };
+
+  const handleCancelAdd = () => {
+    setPendingTitle(null);
   };
 
   return (
@@ -87,8 +111,7 @@ export function TaskList() {
       <TimerArea
         state={state}
         deadlineAt={deadline?.deadlineAt ?? null}
-        onExpire={advanceDeadline}
-        onOpenPicker={() => setPickerVisible(true)}
+        onExpire={expireDeadline}
       />
 
       <Body
@@ -96,6 +119,7 @@ export function TaskList() {
         tasks={tasks}
         loading={loading}
         error={error}
+        tasksLocked={tasksLocked}
         onToggleComplete={toggleComplete}
         onTogglePriority={togglePriority}
         onRetry={retry}
@@ -112,7 +136,7 @@ export function TaskList() {
           returnKeyType="done"
           blurOnSubmit={false}
           autoCorrect={false}
-          editable={!!auth.userId}
+          editable={!!auth.userId && !isExpired}
         />
         <Pressable
           accessibilityRole="button"
@@ -132,8 +156,10 @@ export function TaskList() {
       <DeadlinePicker
         visible={pickerVisible}
         submitting={settingDeadline}
+        expired={isExpired}
+        cancelable={pendingTitle !== null}
         onConfirm={handleConfirmDeadline}
-        onDismiss={() => setPickerVisible(false)}
+        onCancel={handleCancelAdd}
       />
     </View>
   );
@@ -143,24 +169,23 @@ type TimerAreaProps = {
   state: AppState;
   deadlineAt: string | null;
   onExpire: () => void;
-  onOpenPicker: () => void;
 };
 
-function TimerArea({ state, deadlineAt, onExpire, onOpenPicker }: TimerAreaProps) {
+function TimerArea({ state, deadlineAt, onExpire }: TimerAreaProps) {
   if (state === AppState.ACTIVE && deadlineAt) {
     return <Countdown deadlineAt={deadlineAt} onExpire={onExpire} />;
   }
 
-  if (state === AppState.PENDING) {
+  // EXPIRED forces the (non-dismissible) picker on top of this; the message is
+  // a fallback for the brief moment before the modal animates in.
+  if (state === AppState.EXPIRED) {
     return (
-      <Pressable
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.setDeadline, pressed && styles.setDeadlinePressed]}
-        onPress={onOpenPicker}
-      >
-        <Text style={styles.setDeadlineLabel}>Set a deadline</Text>
-        <Text style={styles.setDeadlineHint}>Your clock starts once you choose.</Text>
-      </Pressable>
+      <View style={styles.expired}>
+        <Text style={styles.expiredLabel}>Deadline passed</Text>
+        <Text style={styles.setDeadlineHint}>
+          Your accountability partner was notified. Set a new deadline to keep going.
+        </Text>
+      </View>
     );
   }
 
@@ -172,6 +197,7 @@ type BodyProps = {
   tasks: Task[];
   loading: boolean;
   error: string | null;
+  tasksLocked: boolean;
   onToggleComplete: (id: string) => void;
   onTogglePriority: (id: string) => void;
   onRetry: () => void;
@@ -182,6 +208,7 @@ function Body({
   tasks,
   loading,
   error,
+  tasksLocked,
   onToggleComplete,
   onTogglePriority,
   onRetry,
@@ -223,6 +250,8 @@ function Body({
       renderItem={({ item }) => (
         <TaskRow
           task={item}
+          // Completed tasks are locked everywhere; others lock when no deadline runs.
+          disabled={tasksLocked || item.isComplete}
           onToggleComplete={onToggleComplete}
           onTogglePriority={onTogglePriority}
         />
@@ -308,23 +337,19 @@ const styles = StyleSheet.create({
     color: colors.priority,
     fontWeight: '600',
   },
-  setDeadline: {
+  expired: {
     alignItems: 'center',
     paddingVertical: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    backgroundColor: colors.inputBackground,
+    borderColor: colors.priority,
+    backgroundColor: colors.priorityMuted,
     gap: spacing.xs,
   },
-  setDeadlinePressed: {
-    opacity: 0.7,
-  },
-  setDeadlineLabel: {
+  expiredLabel: {
     ...typography.label,
-    color: colors.text,
+    color: colors.priority,
   },
   setDeadlineHint: {
     ...typography.caption,

@@ -34,57 +34,62 @@
 
 ### App State
 - [x] App state model implemented as a TypeScript enum with four values:
-        EMPTY    — no tasks present
-        PENDING  — at least one task exists, deadline not yet set
-        ACTIVE   — deadline is set and running
+        EMPTY    — no tasks present, no deadline set
+        ACTIVE   — deadline set and counting down
+        EXPIRED  — deadline passed, SMS fired, awaiting new deadline
         COMPLETE — all tasks completed, eligible for fresh start
+- [x] A deadline is mandatory and non-dismissible: a task can never exist
+      without a deadline (the deadline is chosen as part of adding the first
+      task), and tasks cannot be added or completed without an active deadline
 - [x] App state is derived from Supabase on session start and kept in
       sync with all subsequent task and deadline operations
 - [x] State transitions:
-        EMPTY    → PENDING   first task added
-        PENDING  → ACTIVE    user sets deadline
-        ACTIVE   → ACTIVE    deadline passes without completion:
-                             deadline_at advances by original duration,
-                             updated_at refreshed
+        EMPTY    → ACTIVE    first task added with its mandatory deadline
         ACTIVE   → ACTIVE    qualifying task completed while other tasks remain:
                              deadline_at resets from current time by original duration,
                              updated_at refreshed
-        ACTIVE   → COMPLETE  all tasks completed
-        COMPLETE → PENDING   new task added
-        COMPLETE → EMPTY     all completed tasks cleared, no new tasks added
+        ACTIVE   → COMPLETE  all tasks completed before deadline passes
+        ACTIVE   → EXPIRED   deadline passes without qualifying completion:
+                             deadline status set to expired, deadline_at and
+                             duration_seconds left untouched
+        EXPIRED  → ACTIVE    user opens app and sets a new deadline
+        COMPLETE → ACTIVE    new task added with its mandatory deadline
+        COMPLETE → EMPTY     all completed tasks cleared, no tasks remaining
 
 ### Deadline Picker
-- [x] Deadline picker triggered automatically when app transitions
-      from EMPTY to PENDING (i.e. first task added)
-- [x] Deadline picker re-prompted on app open if app state is PENDING
-- [x] Deadline picker re-prompted when status transitions to COMPLETE
-      and a new task is subsequently added
+- [x] Deadline picker shown (and required) when the first task is added; the
+      task is only saved once a deadline is chosen (committed together)
+- [x] Deadline picker is non-dismissible — the user cannot skip setting a
+      deadline (during the new-task flow they may cancel adding the task
+      entirely instead, which saves nothing)
+- [x] Deadline picker re-shown when a new task is added after COMPLETE
+- [x] Deadline picker re-prompted on app open in EXPIRED, with an
+      acknowledgment ("your deadline passed and your partner was notified")
+      shown before the picker
 - [x] Deadline record inserted into Supabase when user confirms deadline,
       status set to ACTIVE
-- [x] Deadline modification locked out in all states except the
-      COMPLETE → PENDING transition
+- [x] Deadline setting available only when no deadline is active (first task,
+      after COMPLETE, or after EXPIRED); locked out while ACTIVE
 
 ### Countdown Timer
 - [x] Countdown timer displayed on task list screen in dd:hh:mm:ss format
 - [x] Timer visible only when app state is ACTIVE
 - [x] Timer counts down to deadline_at in real time
-- [x] Timer updates correctly after deadline_at advances on expiry
+- [x] Timer drives the ACTIVE → EXPIRED transition when it reaches deadline_at
 
 ### Notifications
 - [ ] expo-notifications permissions requested during onboarding
 - [ ] Notification sequence pre-scheduled at deadline-setting time:
         24 hours before  (only if deadline is far enough out)
+        2 hours before   (only if deadline is far enough out)
         1 hour before    (only if deadline is far enough out)
         At the deadline
 - [ ] Only future-dated notifications are scheduled relative to
       the moment the deadline is set
 - [ ] Notification copy escalates in urgency after the deadline passes
 - [ ] All pending notifications cancelled on all-tasks-complete
-- [ ] Notification sequence rescheduled when deadline_at advances
-      on expiry (previous notifications cancelled, new ones scheduled
-      from the new deadline_at)
 - [ ] Notification sequence rescheduled when a new deadline is set
-      after a COMPLETE → PENDING transition
+      after a COMPLETE → ACTIVE transition
 
 ## 📋 Sprint 3 — Accountability Backend
 

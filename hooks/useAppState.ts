@@ -19,7 +19,7 @@ export type AppStateValue = {
   toggleComplete: (id: string) => Promise<void>;
   togglePriority: (id: string) => Promise<void>;
   confirmDeadline: (durationSeconds: number) => Promise<void>;
-  advanceDeadline: () => Promise<void>;
+  expireDeadline: () => Promise<void>;
   retry: () => void;
 };
 
@@ -45,36 +45,48 @@ export function useAppStateController(userId: string | null): AppStateValue {
 
   const hasTasks = tasksApi.tasks.length > 0;
   const allComplete = hasTasks && tasksApi.tasks.every((task) => task.isComplete);
-  const deadlineActive = deadlineApi.deadline?.status === 'active';
+  const deadlineStatus = deadlineApi.deadline?.status ?? null;
 
   const state = useMemo(
-    () => deriveAppState({ hasTasks, allComplete, deadlineActive }),
-    [hasTasks, allComplete, deadlineActive],
+    () => deriveAppState({ hasTasks, allComplete, deadlineStatus }),
+    [hasTasks, allComplete, deadlineStatus],
   );
 
-  const { markComplete, restartFromNow, advanceIfExpired } = deadlineApi;
-  const deadlineStatus = deadlineApi.deadline?.status;
+  const { markComplete, restartFromNow, markExpired } = deadlineApi;
+  const deadlineAt = deadlineApi.deadline?.deadlineAt ?? null;
 
-  // ACTIVE → COMPLETE: park the running deadline once every task is done.
+  // ACTIVE/EXPIRED → COMPLETE: park the deadline once every task is done so a
+  // later new task (COMPLETE → ACTIVE) doesn't re-derive a stale ACTIVE/EXPIRED.
   useEffect(() => {
-    if (state === AppState.COMPLETE && deadlineStatus === 'active') {
+    if (
+      state === AppState.COMPLETE &&
+      (deadlineStatus === 'active' || deadlineStatus === 'expired')
+    ) {
       void markComplete();
     }
   }, [state, deadlineStatus, markComplete]);
 
-  // ACTIVE → ACTIVE: roll a lapsed deadline forward on session start and
-  // whenever the app returns to the foreground.
+  // ACTIVE → EXPIRED: when the deadline lapses, mark it expired (status only —
+  // deadline_at and duration_seconds are left untouched). Checked on session
+  // start and whenever the app returns to the foreground; the live countdown
+  // also calls expireDeadline the moment it reaches zero.
   useEffect(() => {
-    if (state !== AppState.ACTIVE) return;
+    if (state !== AppState.ACTIVE || !deadlineAt) return;
 
-    void advanceIfExpired();
+    const checkExpiry = () => {
+      if (new Date(deadlineAt).getTime() <= Date.now()) {
+        void markExpired();
+      }
+    };
+
+    checkExpiry();
 
     const subscription = RNAppState.addEventListener('change', (status) => {
-      if (status === 'active') void advanceIfExpired();
+      if (status === 'active') checkExpiry();
     });
 
     return () => subscription.remove();
-  }, [state, advanceIfExpired]);
+  }, [state, deadlineAt, markExpired]);
 
   const loading = tasksApi.loading || deadlineApi.loading;
   const error = tasksApi.error ?? deadlineApi.error;
@@ -82,14 +94,17 @@ export function useAppStateController(userId: string | null): AppStateValue {
 
   const toggleComplete = useCallback(
     async (id: string) => {
+      // Tasks can only be completed while a deadline is actively running.
+      if (state !== AppState.ACTIVE) return;
+
       const currentTasks = tasksApi.tasks;
       const currentTask = currentTasks.find((task) => task.id === id);
 
+      // Completion is one-way: a completed task can't be reopened or modified.
+      if (!currentTask || currentTask.isComplete) return;
+
       const shouldRestartDeadline =
-        state === AppState.ACTIVE &&
         deadlineStatus === 'active' &&
-        !!currentTask &&
-        !currentTask.isComplete &&
         isQualifyingTask(currentTask, currentTasks) &&
         currentTasks.some((task) => task.id !== id && !task.isComplete);
 
@@ -118,7 +133,7 @@ export function useAppStateController(userId: string | null): AppStateValue {
       toggleComplete,
       togglePriority: tasksApi.togglePriority,
       confirmDeadline: deadlineApi.confirmDeadline,
-      advanceDeadline: deadlineApi.advanceIfExpired,
+      expireDeadline: markExpired,
       retry: () => {
         tasksApi.retry();
         deadlineApi.reload();

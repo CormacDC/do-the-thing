@@ -5,18 +5,26 @@ import type { Task } from '@/types/task';
 
 type TaskRowProps = {
   task: Task;
+  /** Locks completion/priority toggles when no deadline is actively running. */
+  disabled?: boolean;
   onToggleComplete: (id: string) => void;
   onTogglePriority: (id: string) => void;
 };
 
-export function TaskRow({ task, onToggleComplete, onTogglePriority }: TaskRowProps) {
+export function TaskRow({
+  task,
+  disabled = false,
+  onToggleComplete,
+  onTogglePriority,
+}: TaskRowProps) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, disabled && styles.rowDisabled]}>
       <Pressable
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: task.isComplete }}
+        accessibilityState={{ checked: task.isComplete, disabled }}
         accessibilityLabel={task.isComplete ? 'Mark as incomplete' : 'Mark as complete'}
         hitSlop={8}
+        disabled={disabled}
         style={[styles.checkbox, task.isComplete && styles.checkboxComplete]}
         onPress={() => onToggleComplete(task.id)}
       >
@@ -32,9 +40,10 @@ export function TaskRow({ task, onToggleComplete, onTogglePriority }: TaskRowPro
 
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ selected: task.isPriority }}
+        accessibilityState={{ selected: task.isPriority, disabled }}
         accessibilityLabel={task.isPriority ? 'Remove priority' : 'Mark as priority'}
         hitSlop={8}
+        disabled={disabled}
         style={[styles.priorityButton, task.isPriority && styles.priorityActive]}
         onPress={() => onTogglePriority(task.id)}
       >
@@ -54,6 +63,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  rowDisabled: {
+    opacity: 0.6,
   },
   checkbox: {
     width: 24,

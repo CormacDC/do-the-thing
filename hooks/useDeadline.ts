@@ -18,14 +18,14 @@ export type UseDeadlineResult = {
   error: string | null;
   mutationError: string | null;
   dismissMutationError: () => void;
-  /** PENDING → ACTIVE (and COMPLETE → PENDING → ACTIVE). Starts the clock now. */
+  /** Sets (or replaces) the deadline and starts the clock from now (→ ACTIVE). */
   confirmDeadline: (durationSeconds: number) => Promise<void>;
   /** ACTIVE → COMPLETE. Parks the deadline so it stops being treated as running. */
   markComplete: () => Promise<void>;
   /** ACTIVE → ACTIVE. Restarts the clock from now using the existing duration. */
   restartFromNow: () => Promise<void>;
-  /** ACTIVE → ACTIVE. Rolls a lapsed deadline forward by whole durations. */
-  advanceIfExpired: () => Promise<void>;
+  /** ACTIVE → EXPIRED. Marks the deadline expired; leaves deadline_at/duration untouched. */
+  markExpired: () => Promise<void>;
   reload: () => void;
 };
 
@@ -36,7 +36,6 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const deadlineRef = useRef<Deadline | null>(null);
-  const advancingRef = useRef(false);
 
   deadlineRef.current = deadline;
 
@@ -171,34 +170,28 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     }
   }, [userId]);
 
-  const advanceIfExpired = useCallback(async () => {
-    if (!supabase || !userId || advancingRef.current) return;
+  const markExpired = useCallback(async () => {
+    if (!supabase || !userId) return;
 
     const previous = deadlineRef.current;
     if (!previous || previous.status !== 'active') return;
 
-    const durationMs = previous.durationSeconds * 1000;
-    if (durationMs <= 0) return;
+    // Only expire a deadline that has genuinely lapsed. This guards against a
+    // race with restartFromNow: if a qualifying completion just pushed
+    // deadline_at into the future, a stale expiry trigger (e.g. the countdown
+    // firing onExpire off the old timestamp) must not flip status to 'expired'
+    // and leave a future deadline_at behind.
+    if (new Date(previous.deadlineAt).getTime() > Date.now()) return;
 
-    const now = Date.now();
-    const current = new Date(previous.deadlineAt).getTime();
-    if (current > now) return;
-
-    const periods = Math.floor((now - current) / durationMs) + 1;
-    const nextDeadlineAt = new Date(current + periods * durationMs).toISOString();
-
-    advancingRef.current = true;
-    setDeadline({ ...previous, deadlineAt: nextDeadlineAt });
+    setDeadline({ ...previous, status: 'expired' });
 
     const { error: updateError } = await supabase
       .from('deadlines')
-      .update({ deadline_at: nextDeadlineAt })
+      .update({ status: 'expired' })
       .eq('user_id', userId);
 
-    advancingRef.current = false;
-
     if (updateError) {
-      if (__DEV__) console.warn('[Do The Thing] advance deadline failed:', updateError);
+      if (__DEV__) console.warn('[Do The Thing] mark deadline expired failed:', updateError);
       setDeadline(previous);
     }
   }, [userId]);
@@ -215,7 +208,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     confirmDeadline,
     markComplete,
     restartFromNow,
-    advanceIfExpired,
+    markExpired,
     reload,
   };
 }

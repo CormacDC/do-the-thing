@@ -9,9 +9,10 @@
 - [x] Task list screen scaffolded (UI only, no logic yet)
 - [x] Supabase project created and client configured in /lib
 - [x] Environment variables set up (.env, .env.example)
-- [x] .gitignore file in place, set up to keep the project secure and reduce file noise in the repository
+- [x] .gitignore file in place, set up to keep the project secure and
+      reduce file noise in the repository
 
-## 📋 Sprint 1 — Task List Logic
+## ✅ Sprint 1 — Task List Logic
 
 - [x] Add task functionality
 - [x] Display task list
@@ -20,12 +21,12 @@
 - [x] RLS exists for anonymous sign-ins for testing purposes
 - [x] Task data persisted to Supabase tasks table
 
-## 📋 Sprint 2 — Task Timer & Notifications (Current)
+## 🔄 Sprint 2 — Daily Quota, Timer & Notifications (Current)
 
 ### Supabase
 - [x] Deadlines table created with schema:
-      id, user_id, deadline_at, twilio_message_sid (nullable & unused until sprint 3),
-      status, created_at, updated_at
+      id, user_id, deadline_at, twilio_message_sid (nullable & unused until
+      sprint 3), status, created_at, updated_at
 - [x] Unique constraint on user_id (one deadline record per user, ever)
 - [x] RLS enabled on deadlines table with policies:
       users can only select, insert, and update their own deadline record
@@ -36,75 +37,97 @@
 - [x] App state model implemented as a TypeScript enum with four values:
         EMPTY    — no tasks present, no deadline set
         ACTIVE   — deadline set and counting down
-        EXPIRED  — deadline passed, SMS fired, awaiting new deadline
+        EXPIRED  — deadline passed, SMS fired, awaiting new quota for deadline to begin
         COMPLETE — all tasks completed, eligible for fresh start
-- [x] A deadline is mandatory and non-dismissible: a task can never exist
-      without a deadline (the deadline is chosen as part of adding the first
-      task), and tasks cannot be added or completed without an active deadline
+- [x] A deadline is mandatory and non-dismissible: tasks cannot be added or completed without an active deadline
 - [x] App state is derived from Supabase on session start and kept in
       sync with all subsequent task and deadline operations
 - [x] State transitions:
-        EMPTY    → ACTIVE    first task added with its mandatory deadline
-        ACTIVE   → ACTIVE    qualifying task completed while other tasks remain:
-                             deadline_at resets from current time by original duration,
-                             updated_at refreshed
-        ACTIVE   → COMPLETE  all tasks completed before deadline passes
-        ACTIVE   → EXPIRED   deadline passes without qualifying completion:
-                             deadline status set to expired, deadline_at and
-                             duration_seconds left untouched
-        EXPIRED  → ACTIVE    user opens app and sets a new deadline
-        COMPLETE → ACTIVE    new task added with its mandatory deadline
+        EMPTY    → ACTIVE    first task added, deadline's deadline_at
+                             is set to end of current day, updated_at refreshed
+        ACTIVE   → ACTIVE    qualifying task completed while quota not yet
+                             met and tasks remain: tasks_completed_today
+                             incremented, updated_at refreshed
+        ACTIVE   → COMPLETE  daily quota of qualifying tasks met, deadline is complete until
+                             next day
+        ACTIVE   → EXPIRED   midnight reached without
+                             meeting daily quota: deadline status set to
+                             expired, SMS fires
+        EXPIRED  → ACTIVE    user opens app and sets a new quota for the day, deadline resumes
+        COMPLETE → ACTIVE    new task added with its mandatory quota
         COMPLETE → EMPTY     all completed tasks cleared, no tasks remaining
 
-### Deadline Picker
-- [x] Deadline picker shown (and required) when the first task is added; the
-      task is only saved once a deadline is chosen (committed together)
-- [x] Deadline picker is non-dismissible — the user cannot skip setting a
-      deadline (during the new-task flow they may cancel adding the task
-      entirely instead, which saves nothing)
-- [x] Deadline picker re-shown when a new task is added after COMPLETE
-- [x] Deadline picker re-prompted on app open in EXPIRED, with an
-      acknowledgment ("your deadline passed and your partner was notified")
-      shown before the picker
-- [x] Deadline record inserted into Supabase when user confirms deadline,
-      status set to ACTIVE
-- [x] Deadline setting available only when no deadline is active (first task,
-      after COMPLETE, or after EXPIRED); locked out while ACTIVE
+### Daily Quota
+- [ ] Deadlines table updated to include daily_quota (integer, default 0) and
+      tasks_completed_today (integer, default 0) columns
+- [ ] TypeScript types regenerated after schema update
+- [ ] On first task creation, user is prompted to set a daily quota —
+      how many qualifying tasks they believe they can complete today
+      (minimum 1). Quota and task are saved atomically; cancelling
+      discards both.
+- [ ] If a deadline is active, its daily_quota must be at least 1
+- [ ] Quota picker shown on first task creation, after COMPLETE when
+      a new task is added, and after EXPIRED when the app is reopened
+- [ ] Quota picker is non-dismissible — the user cannot skip setting
+      a quota (they may cancel adding the task entirely instead,
+      which saves nothing)
+- [ ] Once per day, the user may opt (but is not prompted) to adjust
+      their quota via a settings affordance on the task list screen.
+      Minimum value of 1. This counts as the daily adjustment and
+      cannot be changed again until the next day.
+- [ ] Priority task rule enforced: if one or more Priority tasks exist,
+      only completing a Priority task counts toward the daily quota
+- [ ] Partial completion acknowledged in UI and SMS copy when the day
+      ends with some but not all quota tasks completed — e.g.
+      "You completed 2 of 3 tasks today."
+- [ ] tasks_completed_today resets to 0 at the daily reset
+
+### Daily Reset
+- [ ] Daily reset fires at midnight
+- [ ] At daily reset, tasks_completed_today resets to 0 in Supabase
+- [ ] Incomplete tasks carry forward automatically to the next day's list
+- [ ] If quota was met before reset, state transitions to COMPLETE and
+      no SMS fires
+- [ ] If quota was not met at reset, state transitions to EXPIRED and
+      SMS fires
 
 ### Countdown Timer
 - [x] Countdown timer displayed on task list screen in dd:hh:mm:ss format
 - [x] Timer visible only when app state is ACTIVE
 - [x] Timer counts down to deadline_at in real time
-- [x] Timer drives the ACTIVE → EXPIRED transition when it reaches deadline_at
+- [ ] Timer counts down to end of day (midnight) rather than a
+      user-chosen timestamp
 
 ### Notifications
-- [ ] expo-notifications permissions requested during onboarding
-- [ ] Notification sequence pre-scheduled at deadline-setting time:
-        24 hours before  (only if deadline is far enough out)
-        2 hours before   (only if deadline is far enough out)
-        1 hour before    (only if deadline is far enough out)
-        At the deadline
+- [ ] expo-notifications permissions requested on first task creation
+- [ ] Notification sequence pre-scheduled at quota-setting time:
+        Morning reminder at a user-chosen wake time (if set)
+        2 hours before midnight — gentle nudge
+        1 hour before midnight — direct reminder
+        At midnight — urgent, references accountability partner
 - [ ] Only future-dated notifications are scheduled relative to
-      the moment the deadline is set
-- [ ] Notification copy escalates in urgency after the deadline passes
-- [ ] All pending notifications cancelled on all-tasks-complete
-- [ ] Notification sequence rescheduled when a new deadline is set
-      after a COMPLETE → ACTIVE transition
+      the moment the quota is set
+- [ ] Notification copy escalates in urgency toward midnight
+- [ ] All pending notifications cancelled when daily quota is met
+- [ ] Notification sequence rescheduled when a new quota is set
+      after EXPIRED or COMPLETE → ACTIVE transitions
 
 ## 📋 Sprint 3 — Accountability Backend
 
-- [ ] Supabase deadlines table schema updated to include twilio_message_sid
 - [ ] Twilio account configured with a phone number
-- [ ] Supabase Edge Function: schedule Twilio SMS at deadline-setting time
-      via Twilio's message scheduling API
+- [ ] Supabase Edge Function: schedule Twilio SMS at deadline time
+      (default midnight that night) when daily reset fires without quota met
 - [ ] Twilio message SID stored against deadline record in Supabase
-- [ ] Default SMS copy implemented:
-      "[User's name] wanted you to know they still haven't completed
-      any tasks!"
+- [ ] Default SMS copy implemented, referencing partial completion
+      where applicable:
+        Full miss:    "[Name] didn't complete any of their tasks yesterday."
+        Partial miss: "[Name] completed [X] of [Y] tasks yesterday."
+        Priority miss: "[Name] didn't complete any of their Priority tasks
+                        yesterday."
 - [ ] Supabase Edge Function: cancel scheduled Twilio SMS via stored SID
-      on qualifying task completion and schedule new SMS
-- [ ] Graceful handling if SMS already sent (no cancellation attempted,
-      late completion acknowledged in UI without error)
+      when daily quota is met before deadline expires
+- [ ] Graceful handling if SMS already sent — late completion acknowledged
+      in UI without error
 
 ## 📋 Sprint 4 — Accountability Partner Setup & Onboarding
 
@@ -118,10 +141,12 @@
 ## 📋 Sprint 5 — Auth & User Accounts
 
 - [ ] Supabase Auth configured
-- [ ] OAuth login implemented via Supabase's OAuth client library, supporting Google and Apple, and custom email/passowrd login
+- [ ] OAuth login implemented via Supabase's OAuth client library,
+      supporting Google and Apple, and custom email/password login
 - [ ] Sign up / sign in screens with OAuth provider buttons
 - [ ] User session managed in app
-- [ ] RLS policies written/updated if needed for all tables (tasks, deadlines, users) to account for new login methods
+- [ ] RLS policies written/updated if needed for all tables
+      (tasks, deadlines, users) to account for new login methods
 - [ ] Onboarding only shown to new users
 
 ## 📋 Sprint 6 — Polish & Launch Prep
@@ -136,3 +161,6 @@
 ### Post-Launch Consideration
 - [ ] Deadline audit log table for analytics and debugging if
       user retention data becomes valuable
+- [ ] Daily recurring tasks (exercise, make bed, etc.) that
+      automatically appear in the task list each day and count
+      toward the daily quota

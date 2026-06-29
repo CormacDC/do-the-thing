@@ -6,7 +6,9 @@ A minimalist iOS accountability app built with Expo and React Native. Do The Thi
 
 ## The Idea
 
-Most productivity apps give you more ways to organize tasks than to actually do them. Do The Thing takes the opposite approach. You add your tasks, set a deadline, and designate an accountability partner. If you don't complete a qualifying task before the clock runs out, your partner gets a text. That's it.
+Most productivity apps give you more ways to organize tasks than to actually do them. Do The Thing takes the opposite approach. Each morning you add your tasks, commit to a daily quota — the number you'll complete before midnight — and designate an accountability partner. If you don't hit your quota by the time the clock strikes twelve, your partner gets a text. That's it.
+
+The deadline is always midnight. There's no choosing a duration, no extensions, no grace period. You have today. Use it.
 
 ---
 
@@ -14,32 +16,47 @@ Most productivity apps give you more ways to organize tasks than to actually do 
 
 ### Task List
 
-Add tasks and optionally mark one or more as **Priority**. Priority tasks change the rules: once any Priority task exists, only completing a Priority task counts as progress. Non-priority completions won't reset the clock or stop the accountability mechanic from firing.
+Add tasks and optionally mark one or more as **Priority**. Priority tasks change the rules: once any Priority task exists, only completing a Priority task counts toward your daily quota. This lets you signal to the app — and to yourself — what actually matters today.
 
-### Task Timer
+Tasks are never deleted at the end of the day. Anything left incomplete carries forward automatically to tomorrow's list.
 
-When you add your first task, you set a deadline. The app schedules a sequence of push notifications to keep you honest:
+### Daily Quota
 
-- 24 hours before the deadline
-- 1 hour before the deadline
-- At the deadline
-- Every 30 minutes for up to 3 hours after — escalating in urgency
+When you add your first task, you commit to a daily quota: the number of qualifying tasks you will complete before midnight. The app counts down to midnight in real time.
 
-Complete a qualifying task at any point and the clock resets, giving you a fresh deadline of the same original duration. All pending notifications are cancelled and rescheduled from the current moment.
+- Meet your quota at any point during the day and the SMS is cancelled. Your day is done.
+- Miss your quota at midnight and the SMS fires immediately — no delay, no manual trigger.
+- After a successful day, the same quota carries forward to the next morning automatically. You can adjust it once per day via a subtle option on the task list screen.
+- After a missed day, you set a fresh quota before continuing.
+
+Completing tasks beyond your quota is always allowed. They just don't count toward anything — the objective for the day is already met.
 
 ### Accountability System
 
-When you set a deadline, an SMS is immediately scheduled via Twilio for delivery at the exact deadline timestamp. If you complete a qualifying task in time, the scheduled message is cancelled. If the deadline passes without completion, your accountability partner gets the text automatically — no manual trigger, no delay.
+When you commit to a quota, an SMS is scheduled via Twilio for delivery at midnight. If you complete your quota before then, the scheduled message is cancelled. If midnight arrives and the quota isn't met, the message fires automatically.
 
-The default message reads something like:
+The default message reflects how the day actually went:
 
-> *"[Your name] wanted you to know they still haven't completed any tasks!"*
+> *"[Name] didn't complete any of their tasks today."*
+> *"[Name] completed 2 of 3 tasks today."*
+> *"[Name] didn't complete any of their Priority tasks today."*
 
-You can customize this message during onboarding.
+You can replace the default with a custom message during onboarding.
+
+### Push Notifications
+
+The app pre-schedules a sequence of local push notifications when you set your quota:
+
+- Morning reminder at a user-chosen wake time (if configured)
+- 2 hours before midnight — gentle nudge
+- 1 hour before midnight — direct reminder
+- At midnight — urgent, references your accountability partner
+
+Notification copy escalates in urgency as midnight approaches. All pending notifications are cancelled the moment your quota is met. If you set a new quota (after a missed day), the sequence is rescheduled from the current moment — only future-dated notifications are added.
 
 ### Accountability Partner Setup
 
-During onboarding, you select one contact from your phone as your accountability partner. Their name and number are stored securely against your account. You're shown a clear consent notice before saving — so you know exactly what you're signing them up to receive.
+During onboarding, you select one contact from your phone as your accountability partner. Their name and number are stored securely against your account. A clear consent notice is shown before saving — so you know exactly what you're signing them up to receive.
 
 ---
 
@@ -122,7 +139,7 @@ The core tables in Supabase are:
 
 - **users** — account info and accountability partner details
 - **tasks** — individual tasks with priority and completion status
-- **deadlines** — deadline records including Twilio message SID and status
+- **deadlines** — one record per user tracking their daily quota, today's completion count, the last reset timestamp, and the scheduled Twilio message SID
 
 Row Level Security is enabled on all tables. Users can only read and write their own data.
 

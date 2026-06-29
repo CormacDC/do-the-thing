@@ -100,21 +100,6 @@
 - [x] Timer counts down to end of day (midnight) rather than a
       user-chosen timestamp
 
-### Notifications
-- [ ] expo-notifications permissions requested on first task creation
-- [ ] Notification sequence pre-scheduled at quota-setting time:
-        Morning reminder at a user-chosen wake time (if set)
-        2 hours before midnight — gentle nudge
-        1 hour before midnight — direct reminder
-        At midnight — urgent, references accountability partner
-- [ ] Only future-dated notifications are scheduled relative to
-      the moment the quota is set
-- [ ] Notification copy escalates in urgency toward midnight
-- [ ] All pending notifications cancelled when daily quota is met
-- [ ] Notification sequence rescheduled when a new quota is set after
-      EXPIRED → ACTIVE (user-initiated); the COMPLETE → ACTIVE daily reset
-      reuses the existing quota and reschedules automatically
-
 ## 📋 Sprint 3 — Accountability Backend
 
 - [ ] Twilio account configured with a phone number
@@ -160,6 +145,21 @@
 - [ ] EAS Build configured for custom dev client
 - [ ] TestFlight internal testing
 - [ ] App Store listing prep
+
+### Notifications
+- [ ] expo-notifications permissions requested on first task creation
+- [ ] Notification sequence pre-scheduled at quota-setting time:
+        9am - motivational morning message
+        1pm - gentle reminder
+        5pm - slightly more urgent reminder
+        9pm - urgent and final reminder, references accountability partner being notified upon expiry
+- [ ] Only future-dated notifications are scheduled relative to
+      the moment the quota is set
+- [ ] Notification copy escalates in urgency closer to expiry
+- [ ] All pending notifications cancelled when daily quota is met
+- [ ] Notification sequence rescheduled when a new quota is set after
+      EXPIRED → ACTIVE (user-initiated); the COMPLETE → ACTIVE daily reset
+      reuses the existing quota and reschedules automatically
 
 ### Post-Launch Consideration
 - [ ] Deadline audit log table for analytics and debugging if

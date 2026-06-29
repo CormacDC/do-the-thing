@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getNextDeadlineISO } from '@/lib/deadline';
 import { supabase } from '@/lib/supabase';
 import type { Deadline, DeadlineRow, DeadlineStatus } from '@/types/deadline';
-
-/** Returns an ISO string for 00:00:00 of tomorrow (midnight tonight) in local time. */
-function getMidnightISO(): string {
-  const midnight = new Date();
-  midnight.setHours(24, 0, 0, 0);
-  return midnight.toISOString();
-}
 
 function fromRow(row: DeadlineRow): Deadline {
   return {
@@ -105,7 +99,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       if (!supabase || !userId || dailyQuota < 1) return;
 
       const previous = deadlineRef.current;
-      const deadlineAt = getMidnightISO();
+      const deadlineAt = getNextDeadlineISO();
       const now = new Date().toISOString();
 
       setDeadline({
@@ -178,7 +172,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     if (!previous) return;
 
     const now = new Date().toISOString();
-    const nextDeadlineAt = getMidnightISO();
+    const nextDeadlineAt = getNextDeadlineISO();
 
     if (previous.status === 'active') {
       // Standard midnight reset: evaluate quota and transition to COMPLETE or EXPIRED.

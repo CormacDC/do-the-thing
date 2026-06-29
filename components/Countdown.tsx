@@ -1,14 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { getNextDeadlineISO } from '@/lib/deadline';
 import { colors, spacing, typography } from '@/lib/theme';
-
-/** Returns an ISO string for 00:00:00 of tomorrow (midnight tonight) in local time. */
-function getMidnightISO(): string {
-  const midnight = new Date();
-  midnight.setHours(24, 0, 0, 0);
-  return midnight.toISOString();
-}
 
 function pad(value: number): string {
   return value.toString().padStart(2, '0');
@@ -32,7 +26,7 @@ export function Countdown({ onExpire }: CountdownProps) {
   // Midnight is computed once on mount. If the app is open continuously, this
   // component will be unmounted when the state transitions after onExpire fires,
   // so there is no need to re-arm for the following day.
-  const [deadlineAt] = useState(getMidnightISO);
+  const [deadlineAt] = useState(getNextDeadlineISO);
   const [now, setNow] = useState(() => Date.now());
   const firedRef = useRef(false);
 

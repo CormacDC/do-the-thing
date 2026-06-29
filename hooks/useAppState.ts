@@ -3,6 +3,7 @@ import { AppState as RNAppState } from 'react-native';
 
 import { useDeadline } from '@/hooks/useDeadline';
 import { useTasks } from '@/hooks/useTasks';
+import { shouldRunMissedReset } from '@/lib/deadline';
 import { AppState, deriveAppState } from '@/types/appState';
 import type { Deadline } from '@/types/deadline';
 import type { Task } from '@/types/task';
@@ -95,9 +96,7 @@ export function useAppStateController(userId: string | null): AppStateValue {
     if ((state !== AppState.ACTIVE && state !== AppState.COMPLETE) || !lastResetAt) return;
 
     const checkAndReset = async () => {
-      const resetDate = new Date(lastResetAt);
-      const today = new Date();
-      if (!isSameCalendarDay(resetDate, today)) {
+      if (shouldRunMissedReset(lastResetAt)) {
         await runDailyReset();
       }
     };

@@ -35,67 +35,69 @@
 
 ### App State
 - [x] App state model implemented as a TypeScript enum with four values:
-        EMPTY    — no tasks present, no deadline set
-        ACTIVE   — deadline set and counting down
-        EXPIRED  — deadline passed, SMS fired, awaiting new quota for deadline to begin
-        COMPLETE — all tasks completed, eligible for fresh start
-- [x] A deadline is mandatory and non-dismissible: tasks cannot be added or completed without an active deadline
+        EMPTY    — no tasks present, no active quota
+        ACTIVE   — quota set and counting down to midnight
+        EXPIRED  — midnight passed without meeting quota; SMS fired, awaiting new quota
+        COMPLETE — daily quota met; tasks can still be completed but don't count
+- [x] A quota is mandatory before tasks can be added for the first time or after
+      EXPIRED; tasks can be added and completed freely in ACTIVE and COMPLETE states
 - [x] App state is derived from Supabase on session start and kept in
       sync with all subsequent task and deadline operations
 - [x] State transitions:
-        EMPTY    → ACTIVE    first task added, deadline's deadline_at
-                             is set to end of current day, updated_at refreshed
-        ACTIVE   → ACTIVE    qualifying task completed while quota not yet
-                             met and tasks remain: tasks_completed_today
-                             incremented, updated_at refreshed
-        ACTIVE   → COMPLETE  daily quota of qualifying tasks met, deadline is complete until
-                             next day
-        ACTIVE   → EXPIRED   midnight reached without
-                             meeting daily quota: deadline status set to
-                             expired, SMS fires
-        EXPIRED  → ACTIVE    user opens app and sets a new quota for the day, deadline resumes
-        COMPLETE → ACTIVE    new task added with its mandatory quota
-        COMPLETE → EMPTY     all completed tasks cleared, no tasks remaining
+        EMPTY    → ACTIVE    first task added and quota confirmed; deadline_at
+                             set to tonight's midnight
+        ACTIVE   → ACTIVE    qualifying task completed, quota not yet met:
+                             tasks_completed_today incremented
+        ACTIVE   → COMPLETE  tasks_completed_today reaches daily_quota
+        ACTIVE   → EXPIRED   midnight reached without meeting quota:
+                             SMS fires, status set to expired
+        EXPIRED  → ACTIVE    user sets a new quota; deadline_at reset to
+                             tonight's midnight, tasks_completed_today reset to 0
+        COMPLETE → ACTIVE    daily reset fires the next morning: same quota
+                             carried forward, tasks_completed_today reset to 0,
+                             last_quota_adjusted_at cleared for the new day
+        COMPLETE → EMPTY     all tasks cleared, none remaining
 
 ### Daily Quota
-- [ ] Deadlines table updated to include daily_quota (integer, default 0) and
-      tasks_completed_today (integer, default 0) columns
-- [ ] TypeScript types regenerated after schema update
-- [ ] On first task creation, user is prompted to set a daily quota —
+- [x] Deadlines table updated to include daily_quota, tasks_completed_today,
+      last_reset_at, and last_quota_adjusted_at columns
+- [x] TypeScript types regenerated after schema update
+- [x] On first task creation, user is prompted to set a daily quota —
       how many qualifying tasks they believe they can complete today
       (minimum 1). Quota and task are saved atomically; cancelling
       discards both.
-- [ ] If a deadline is active, its daily_quota must be at least 1
-- [ ] Quota picker shown on first task creation, after COMPLETE when
-      a new task is added, and after EXPIRED when the app is reopened
-- [ ] Quota picker is non-dismissible — the user cannot skip setting
+- [x] If a deadline is active, its daily_quota must be at least 1
+- [x] Quota picker shown on first task creation (EMPTY state) and after
+      EXPIRED when the app is reopened; not shown in COMPLETE state since
+      the quota carries forward automatically to the next day via reset
+- [x] Quota picker is non-dismissible — the user cannot skip setting
       a quota (they may cancel adding the task entirely instead,
       which saves nothing)
-- [ ] Once per day, the user may opt (but is not prompted) to adjust
+- [x] Once per day, the user may opt (but is not prompted) to adjust
       their quota via a settings affordance on the task list screen.
       Minimum value of 1. This counts as the daily adjustment and
       cannot be changed again until the next day.
-- [ ] Priority task rule enforced: if one or more Priority tasks exist,
+- [x] Priority task rule enforced: if one or more Priority tasks exist,
       only completing a Priority task counts toward the daily quota
-- [ ] Partial completion acknowledged in UI and SMS copy when the day
+- [x] Partial completion acknowledged in UI and SMS copy when the day
       ends with some but not all quota tasks completed — e.g.
       "You completed 2 of 3 tasks today."
-- [ ] tasks_completed_today resets to 0 at the daily reset
+- [x] tasks_completed_today resets to 0 at the daily reset
 
 ### Daily Reset
-- [ ] Daily reset fires at midnight
-- [ ] At daily reset, tasks_completed_today resets to 0 in Supabase
-- [ ] Incomplete tasks carry forward automatically to the next day's list
-- [ ] If quota was met before reset, state transitions to COMPLETE and
+- [x] Daily reset fires at midnight
+- [x] At daily reset, tasks_completed_today resets to 0 in Supabase
+- [x] Incomplete tasks carry forward automatically to the next day's list
+- [x] If quota was met before reset, state transitions to COMPLETE and
       no SMS fires
-- [ ] If quota was not met at reset, state transitions to EXPIRED and
+- [x] If quota was not met at reset, state transitions to EXPIRED and
       SMS fires
 
 ### Countdown Timer
 - [x] Countdown timer displayed on task list screen in dd:hh:mm:ss format
 - [x] Timer visible only when app state is ACTIVE
 - [x] Timer counts down to deadline_at in real time
-- [ ] Timer counts down to end of day (midnight) rather than a
+- [x] Timer counts down to end of day (midnight) rather than a
       user-chosen timestamp
 
 ### Notifications
@@ -109,8 +111,9 @@
       the moment the quota is set
 - [ ] Notification copy escalates in urgency toward midnight
 - [ ] All pending notifications cancelled when daily quota is met
-- [ ] Notification sequence rescheduled when a new quota is set
-      after EXPIRED or COMPLETE → ACTIVE transitions
+- [ ] Notification sequence rescheduled when a new quota is set after
+      EXPIRED → ACTIVE (user-initiated); the COMPLETE → ACTIVE daily reset
+      reuses the existing quota and reschedules automatically
 
 ## 📋 Sprint 3 — Accountability Backend
 

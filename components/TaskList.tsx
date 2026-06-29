@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,13 +10,25 @@ import {
 } from 'react-native';
 
 import { Countdown } from '@/components/Countdown';
-import { DeadlinePicker } from '@/components/DeadlinePicker';
+import { QuotaPicker } from '@/components/QuotaPicker';
 import { TaskRow } from '@/components/TaskRow';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { colors, spacing, typography } from '@/lib/theme';
 import { AppState } from '@/types/appState';
+import type { Deadline } from '@/types/deadline';
 import type { Task } from '@/types/task';
+
+/**
+ * Snapshot of the day's progress captured at the moment of the ACTIVE →
+ * EXPIRED transition, so the expiry copy shows accurate pre-reset counts even
+ * after tasks_completed_today is zeroed in Supabase.
+ */
+type ExpiredSnapshot = {
+  completed: number;
+  quota: number;
+  hasPriorityTasks: boolean;
+};
 
 export function TaskList() {
   const auth = useAuth();
@@ -31,24 +43,48 @@ export function TaskList() {
     addTask,
     toggleComplete,
     togglePriority,
-    confirmDeadline,
+    confirmQuota,
+    adjustQuota,
+    canAdjustQuota,
     expireDeadline,
     retry,
   } = useAppState();
 
   const [draft, setDraft] = useState('');
-  // A task typed while no deadline is running is held here until the user picks
-  // a deadline — the two are committed together so a task never exists without
-  // one. Null means no add is in flight.
+  // A task typed while no active quota exists is held here until the user
+  // picks a quota — the two are committed together so a task never exists
+  // without one. Null means no add is in flight.
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
-  const [settingDeadline, setSettingDeadline] = useState(false);
+  const [settingQuota, setSettingQuota] = useState(false);
+  const [showAdjustPicker, setShowAdjustPicker] = useState(false);
+  const [adjustingQuota, setAdjustingQuota] = useState(false);
+
+  // Capture a snapshot of quota progress whenever the state transitions from
+  // ACTIVE to EXPIRED, so the expiry copy can show accurate counts even after
+  // tasks_completed_today is zeroed server-side.
+  const [expiredSnapshot, setExpiredSnapshot] = useState<ExpiredSnapshot | null>(null);
+  const prevStateRef = useRef<AppState>(state);
+
+  useEffect(() => {
+    if (prevStateRef.current === AppState.ACTIVE && state === AppState.EXPIRED && deadline) {
+      setExpiredSnapshot({
+        completed: deadline.tasksCompletedToday,
+        quota: deadline.dailyQuota,
+        hasPriorityTasks: tasks.some((t) => t.isPriority),
+      });
+    }
+    if (state !== AppState.EXPIRED) {
+      setExpiredSnapshot(null);
+    }
+    prevStateRef.current = state;
+  }, [state, deadline, tasks]);
 
   const isExpired = state === AppState.EXPIRED;
-  // Tasks can only be toggled while a deadline is actively running.
-  const tasksLocked = state !== AppState.ACTIVE;
-  // Adding is blocked while EXPIRED — a new deadline must be set first.
+  // Tasks can be completed in ACTIVE and COMPLETE states. In COMPLETE, the
+  // quota has already been met so completions are recorded but don't count.
+  const tasksLocked = state === AppState.EMPTY || state === AppState.EXPIRED;
   const canSubmit = draft.trim().length > 0 && !!auth.userId && !isExpired;
-  // The picker is forced in EXPIRED, and shown during the new-task flow.
+  // The quota picker is forced in EXPIRED, and shown during the new-task flow.
   const pickerVisible = isExpired || pendingTitle !== null;
 
   const handleSubmit = () => {
@@ -56,35 +92,43 @@ export function TaskList() {
     const value = draft.trim();
     setDraft('');
 
-    if (state === AppState.ACTIVE) {
-      // A deadline is already running — add immediately.
+    if (state === AppState.ACTIVE || state === AppState.COMPLETE) {
+      // ACTIVE: deadline running, add directly.
+      // COMPLETE: quota already met today — add directly without a new quota
+      // prompt. The day's objective is done; the task carries forward to tomorrow.
       void addTask(value);
       return;
     }
 
-    // EMPTY or COMPLETE: hold the task and force a deadline before saving it.
+    // EMPTY or EXPIRED: no active quota exists, must pick one before saving.
     setPendingTitle(value);
   };
 
-  const handleConfirmDeadline = async (durationSeconds: number) => {
-    setSettingDeadline(true);
+  const handleConfirmQuota = async (quota: number) => {
+    setSettingQuota(true);
 
     if (pendingTitle !== null) {
-      // New-task flow: commit the task and its deadline together. Firing both
-      // optimistic updates in the same tick lands directly in ACTIVE with no
-      // COMPLETE/EXPIRED flicker in between.
-      await Promise.all([addTask(pendingTitle), confirmDeadline(durationSeconds)]);
+      // New-task flow: commit the task and its quota atomically. Both optimistic
+      // updates land in the same tick so there is no COMPLETE/EXPIRED flicker.
+      await Promise.all([addTask(pendingTitle), confirmQuota(quota)]);
       setPendingTitle(null);
     } else {
-      // EXPIRED flow: set a new deadline for the existing tasks.
-      await confirmDeadline(durationSeconds);
+      // EXPIRED flow: set a new quota for the existing tasks.
+      await confirmQuota(quota);
     }
 
-    setSettingDeadline(false);
+    setSettingQuota(false);
   };
 
   const handleCancelAdd = () => {
     setPendingTitle(null);
+  };
+
+  const handleAdjustQuota = async (newQuota: number) => {
+    setAdjustingQuota(true);
+    setShowAdjustPicker(false);
+    await adjustQuota(newQuota);
+    setAdjustingQuota(false);
   };
 
   return (
@@ -92,7 +136,7 @@ export function TaskList() {
       <View style={styles.header}>
         <Text style={styles.title}>Do The Thing</Text>
         <Text style={styles.subtitle}>
-          Complete a priority task before the clock resets.
+          Complete your daily quota before midnight.
         </Text>
       </View>
 
@@ -110,8 +154,13 @@ export function TaskList() {
 
       <TimerArea
         state={state}
-        deadlineAt={deadline?.deadlineAt ?? null}
+        deadline={deadline}
+        tasks={tasks}
+        expiredSnapshot={expiredSnapshot}
         onExpire={expireDeadline}
+        canAdjustQuota={canAdjustQuota}
+        onAdjustQuota={() => setShowAdjustPicker(true)}
+        adjustingQuota={adjustingQuota}
       />
 
       <Body
@@ -153,13 +202,23 @@ export function TaskList() {
         </Pressable>
       </View>
 
-      <DeadlinePicker
+      <QuotaPicker
         visible={pickerVisible}
-        submitting={settingDeadline}
-        expired={isExpired}
+        submitting={settingQuota}
+        expired={isExpired && pendingTitle === null}
         cancelable={pendingTitle !== null}
-        onConfirm={handleConfirmDeadline}
+        onConfirm={handleConfirmQuota}
         onCancel={handleCancelAdd}
+      />
+
+      <QuotaPicker
+        visible={showAdjustPicker}
+        submitting={adjustingQuota}
+        adjusting
+        initialQuota={deadline?.dailyQuota ?? 1}
+        cancelable
+        onConfirm={handleAdjustQuota}
+        onCancel={() => setShowAdjustPicker(false)}
       />
     </View>
   );
@@ -167,24 +226,80 @@ export function TaskList() {
 
 type TimerAreaProps = {
   state: AppState;
-  deadlineAt: string | null;
+  deadline: Deadline | null;
+  tasks: Task[];
+  expiredSnapshot: ExpiredSnapshot | null;
   onExpire: () => void;
+  canAdjustQuota: boolean;
+  onAdjustQuota: () => void;
+  adjustingQuota: boolean;
 };
 
-function TimerArea({ state, deadlineAt, onExpire }: TimerAreaProps) {
-  if (state === AppState.ACTIVE && deadlineAt) {
-    return <Countdown deadlineAt={deadlineAt} onExpire={onExpire} />;
+function TimerArea({
+  state,
+  deadline,
+  expiredSnapshot,
+  onExpire,
+  canAdjustQuota,
+  onAdjustQuota,
+  adjustingQuota,
+}: TimerAreaProps) {
+  if (state === AppState.ACTIVE) {
+    const completed = deadline?.tasksCompletedToday ?? 0;
+    const quota = deadline?.dailyQuota ?? 0;
+
+    return (
+      <View>
+        <Countdown onExpire={onExpire} />
+        {quota > 0 ? (
+          <View style={styles.progressRow}>
+            <Text style={styles.progressText}>
+              {completed} of {quota} {quota === 1 ? 'task' : 'tasks'} completed today
+            </Text>
+            {canAdjustQuota ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Adjust today's quota"
+                disabled={adjustingQuota}
+                style={({ pressed }) => [
+                  styles.adjustButton,
+                  pressed && styles.adjustButtonPressed,
+                ]}
+                onPress={onAdjustQuota}
+              >
+                <Text style={styles.adjustLabel}>
+                  {adjustingQuota ? 'Saving…' : 'Adjust'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
   }
 
-  // EXPIRED forces the (non-dismissible) picker on top of this; the message is
-  // a fallback for the brief moment before the modal animates in.
   if (state === AppState.EXPIRED) {
+    // Use the snapshot when available (live transition); fall back to deadline
+    // values for the app-open-after-missed-reset case.
+    const completed = expiredSnapshot?.completed ?? deadline?.tasksCompletedToday ?? 0;
+    const quota = expiredSnapshot?.quota ?? deadline?.dailyQuota ?? 0;
+    const hasPriorityTasks = expiredSnapshot?.hasPriorityTasks ?? false;
+
+    let message: string;
+    if (completed === 0 && hasPriorityTasks) {
+      message =
+        "You didn't complete any of your Priority tasks today. Your accountability partner has been notified.";
+    } else if (completed === 0) {
+      message =
+        "You didn't complete any tasks today. Your accountability partner has been notified.";
+    } else {
+      message = `You completed ${completed} of ${quota} ${quota === 1 ? 'task' : 'tasks'} today. Your accountability partner has been notified.`;
+    }
+
     return (
       <View style={styles.expired}>
-        <Text style={styles.expiredLabel}>Deadline passed</Text>
-        <Text style={styles.setDeadlineHint}>
-          Your accountability partner was notified. Set a new deadline to keep going.
-        </Text>
+        <Text style={styles.expiredLabel}>Day ended</Text>
+        <Text style={styles.expiredMessage}>{message}</Text>
       </View>
     );
   }
@@ -250,7 +365,6 @@ function Body({
       renderItem={({ item }) => (
         <TaskRow
           task={item}
-          // Completed tasks are locked everywhere; others lock when no deadline runs.
           disabled={tasksLocked || item.isComplete}
           onToggleComplete={onToggleComplete}
           onTogglePriority={onTogglePriority}
@@ -264,7 +378,8 @@ function Body({
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Nothing yet.</Text>
           <Text style={styles.emptyBody}>
-            Add a task. Set a deadline. Your partner gets the text if you don&apos;t.
+            Add a task. Commit to a quota. Your partner gets the text if you
+            don&apos;t.
           </Text>
         </View>
       }
@@ -337,9 +452,34 @@ const styles = StyleSheet.create({
     color: colors.priority,
     fontWeight: '600',
   },
-  expired: {
+  progressRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  progressText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    flex: 1,
+  },
+  adjustButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  adjustButtonPressed: {
+    opacity: 0.5,
+  },
+  adjustLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  expired: {
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: 12,
     borderWidth: 1,
@@ -351,9 +491,10 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.priority,
   },
-  setDeadlineHint: {
+  expiredMessage: {
     ...typography.caption,
     color: colors.textMuted,
+    lineHeight: 18,
   },
   list: {
     flex: 1,

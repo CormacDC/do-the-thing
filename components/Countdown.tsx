@@ -3,6 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '@/lib/theme';
 
+/** Returns an ISO string for 00:00:00 of tomorrow (midnight tonight) in local time. */
+function getMidnightISO(): string {
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.toISOString();
+}
+
 function pad(value: number): string {
   return value.toString().padStart(2, '0');
 }
@@ -17,13 +24,15 @@ function formatRemaining(ms: number): string {
 }
 
 type CountdownProps = {
-  /** Source of truth: the deadline timestamp from Supabase (ISO string). */
-  deadlineAt: string;
-  /** Called once when the deadline lapses so the record can advance. */
+  /** Called once when midnight arrives so the daily reset can run. */
   onExpire: () => void;
 };
 
-export function Countdown({ deadlineAt, onExpire }: CountdownProps) {
+export function Countdown({ onExpire }: CountdownProps) {
+  // Midnight is computed once on mount. If the app is open continuously, this
+  // component will be unmounted when the state transitions after onExpire fires,
+  // so there is no need to re-arm for the following day.
+  const [deadlineAt] = useState(getMidnightISO);
   const [now, setNow] = useState(() => Date.now());
   const firedRef = useRef(false);
 
@@ -31,11 +40,6 @@ export function Countdown({ deadlineAt, onExpire }: CountdownProps) {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Re-arm the expiry trigger whenever the deadline advances to a new value.
-  useEffect(() => {
-    firedRef.current = false;
-  }, [deadlineAt]);
 
   const remaining = new Date(deadlineAt).getTime() - now;
 

@@ -12,35 +12,72 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       deadlines: {
         Row: {
           created_at: string
+          daily_quota: number
           deadline_at: string
           duration_seconds: number
           id: string
+          last_quota_adjusted_at: string | null
+          last_reset_at: string
           status: string
+          tasks_completed_today: number
           twilio_message_sid: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          daily_quota?: number
           deadline_at: string
-          duration_seconds: number
+          duration_seconds?: number
           id?: string
+          last_quota_adjusted_at?: string | null
+          last_reset_at?: string
           status?: string
+          tasks_completed_today?: number
           twilio_message_sid?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          daily_quota?: number
           deadline_at?: string
           duration_seconds?: number
           id?: string
+          last_quota_adjusted_at?: string | null
+          last_reset_at?: string
           status?: string
+          tasks_completed_today?: number
           twilio_message_sid?: string | null
           updated_at?: string
           user_id?: string
@@ -214,6 +251,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

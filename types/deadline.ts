@@ -8,6 +8,9 @@ export type DeadlineStatus = 'active' | 'complete' | 'expired';
 export type Deadline = {
   id: string;
   deadlineAt: string;
-  durationSeconds: number;
+  dailyQuota: number;
+  tasksCompletedToday: number;
+  lastResetAt: string;
+  lastQuotaAdjustedAt: string | null;
   status: DeadlineStatus;
 };

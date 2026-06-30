@@ -3,22 +3,30 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AppStateProvider } from '@/lib/appState';
 import { AuthProvider } from '@/lib/auth';
+import { ProfileProvider } from '@/lib/profile';
 import { colors } from '@/lib/theme';
-
-// Future routes: /onboarding (Sprint 4), /sign-in (Sprint 5)
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <AppStateProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        />
-      </AppStateProvider>
+      <ProfileProvider>
+        <AppStateProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen
+              name="onboarding"
+              options={{ gestureEnabled: false, animation: 'fade' }}
+            />
+            <Stack.Screen name="settings" />
+          </Stack>
+        </AppStateProvider>
+      </ProfileProvider>
     </AuthProvider>
   );
 }

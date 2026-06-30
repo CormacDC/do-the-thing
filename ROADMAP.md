@@ -21,7 +21,7 @@
 - [x] RLS exists for anonymous sign-ins for testing purposes
 - [x] Task data persisted to Supabase tasks table
 
-## 🔄 Sprint 2 — Daily Quota, Timer & Notifications (Current)
+## ✅ Sprint 2 — Daily Quota, Timer & Notifications
 
 ### Supabase
 - [x] Deadlines table created with schema:
@@ -100,31 +100,31 @@
 - [x] Timer counts down to end of day (midnight) rather than a
       user-chosen timestamp
 
-## 📋 Sprint 3 — Accountability Partner Setup & Onboarding
+## ✅ Sprint 3 — Accountability Partner Setup & Onboarding
 
-- [ ] Onboarding flow scaffolded and shown only on first app launch
-- [ ] User display name input during onboarding, stored in Supabase
+- [x] Onboarding flow scaffolded and shown only on first app launch
+- [x] User display name input during onboarding, stored in Supabase
       against user account
-- [ ] Accountability partner name and phone number entered manually
+- [x] Accountability partner name and phone number entered manually
       during onboarding (typed in — expo-contacts integration deferred
       to Sprint 6)
-- [ ] Partner details stored in Supabase against user account
-- [ ] Informed consent copy shown before partner details are saved —
+- [x] Partner details stored in Supabase against user account
+- [x] Informed consent copy shown before partner details are saved —
       the user must explicitly acknowledge that their partner will
       receive an automated SMS if they miss their daily quota
-- [ ] Custom SMS message input during onboarding — shown after consent,
+- [x] Custom SMS message input during onboarding — shown after consent,
       stored in Supabase. If left blank, the default copy is used.
-- [ ] Default SMS copy implemented in Supabase, referencing partial
+- [x] Default SMS copy implemented in Supabase, referencing partial
       completion where applicable:
         Full miss:     "[Name] didn't complete any of their tasks yesterday."
         Partial miss:  "[Name] completed [X] of [Y] tasks yesterday."
         Priority miss: "[Name] didn't complete any of their Priority
                         tasks yesterday."
-- [ ] Custom message used in place of default when set, with the same
+- [x] Custom message used in place of default when set, with the same
       partial completion variables available as placeholders
-- [ ] Onboarding cannot be skipped — the app is not usable until
+- [x] Onboarding cannot be skipped — the app is not usable until
       display name, partner details, and consent are completed
-- [ ] Partner details editable post-onboarding via a settings screen
+- [x] Partner details editable post-onboarding via a settings screen
 
 ## 📋 Sprint 4 — Accountability Backend
 

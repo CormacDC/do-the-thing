@@ -1,13 +1,13 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 
+import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Screen } from '@/components/Screen';
-import { TaskList } from '@/components/TaskList';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { colors, spacing, typography } from '@/lib/theme';
 
-export default function HomeScreen() {
+export default function OnboardingScreen() {
   const auth = useAuth();
   const { profile, loading, error, retry } = useProfile();
 
@@ -21,7 +21,18 @@ export default function HomeScreen() {
     );
   }
 
-  if (error && !profile) {
+  if (auth.error) {
+    return (
+      <Screen>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Can&apos;t sign in</Text>
+          <Text style={styles.errorBody}>{auth.error}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
     return (
       <Screen>
         <View style={styles.centered}>
@@ -35,13 +46,13 @@ export default function HomeScreen() {
     );
   }
 
-  if (!profile) {
-    return <Redirect href="/onboarding" />;
+  if (profile) {
+    return <Redirect href="/" />;
   }
 
   return (
     <Screen>
-      <TaskList />
+      <OnboardingFlow />
     </Screen>
   );
 }
@@ -52,7 +63,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
   },
   errorTitle: {
     ...typography.label,

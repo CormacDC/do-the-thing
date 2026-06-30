@@ -84,6 +84,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          custom_sms: string | null
+          display_name: string
+          id: string
+          partner_name: string
+          partner_phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_sms?: string | null
+          display_name: string
+          id: string
+          partner_name: string
+          partner_phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_sms?: string | null
+          display_name?: string
+          id?: string
+          partner_name?: string
+          partner_phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null

@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 
 import { Countdown } from '@/components/Countdown';
 import { QuotaPicker } from '@/components/QuotaPicker';
@@ -134,7 +135,17 @@ export function TaskList() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Do The Thing</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Do The Thing</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
+            onPress={() => router.push('/settings')}
+          >
+            <Text style={styles.settingsLabel}>Settings</Text>
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>
           Complete your daily quota before midnight.
         </Text>
@@ -420,6 +431,24 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
     gap: spacing.sm,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  settingsButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  settingsPressed: {
+    opacity: 0.5,
+  },
+  settingsLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   title: {
     ...typography.title,

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { getNextDeadlineISO } from '@/lib/deadline';
 import { colors, spacing, typography } from '@/lib/theme';
 
 function pad(value: number): string {
@@ -18,17 +17,19 @@ function formatRemaining(ms: number): string {
 }
 
 type CountdownProps = {
-  /** Called once when midnight arrives so the daily reset can run. */
+  /** ISO timestamp to count down toward. */
+  deadlineAt: string;
+  /** Called once when the deadline arrives so the daily reset can run. */
   onExpire: () => void;
 };
 
-export function Countdown({ onExpire }: CountdownProps) {
-  // Midnight is computed once on mount. If the app is open continuously, this
-  // component will be unmounted when the state transitions after onExpire fires,
-  // so there is no need to re-arm for the following day.
-  const [deadlineAt] = useState(getNextDeadlineISO);
+export function Countdown({ deadlineAt, onExpire }: CountdownProps) {
   const [now, setNow] = useState(() => Date.now());
   const firedRef = useRef(false);
+
+  useEffect(() => {
+    firedRef.current = false;
+  }, [deadlineAt]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);

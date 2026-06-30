@@ -11,11 +11,13 @@ import {
 import { router } from 'expo-router';
 
 import { Countdown } from '@/components/Countdown';
+import { DevResetButton } from '@/components/DevResetButton';
 import { QuotaPicker } from '@/components/QuotaPicker';
 import { TaskRow } from '@/components/TaskRow';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { colors, spacing, typography } from '@/lib/theme';
+import { ENABLE_DEV_RESET } from '@/lib/config';
 import { AppState } from '@/types/appState';
 import type { Deadline } from '@/types/deadline';
 import type { Task } from '@/types/task';
@@ -149,6 +151,7 @@ export function TaskList() {
         <Text style={styles.subtitle}>
           Complete your daily quota before midnight.
         </Text>
+        {ENABLE_DEV_RESET ? <DevResetButton /> : null}
       </View>
 
       {mutationError ? (
@@ -261,7 +264,13 @@ function TimerArea({
 
     return (
       <View>
-        <Countdown onExpire={onExpire} />
+        {deadline ? (
+          <Countdown
+            key={deadline.deadlineAt}
+            deadlineAt={deadline.deadlineAt}
+            onExpire={onExpire}
+          />
+        ) : null}
         {quota > 0 ? (
           <View style={styles.progressRow}>
             <Text style={styles.progressText}>

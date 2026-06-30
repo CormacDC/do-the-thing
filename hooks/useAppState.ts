@@ -27,6 +27,8 @@ export type AppStateValue = {
   canAdjustQuota: boolean;
   /** Called by the countdown when it reaches midnight; triggers the daily reset. */
   expireDeadline: () => Promise<void>;
+  /** Dev-only: restart the quota timer without changing tasks. */
+  devResetDay: () => Promise<void>;
   retry: () => void;
 };
 
@@ -171,6 +173,7 @@ export function useAppStateController(userId: string | null): AppStateValue {
       adjustQuota: deadlineApi.adjustQuota,
       canAdjustQuota,
       expireDeadline: runDailyReset,
+      devResetDay: deadlineApi.devResetDay,
       retry: () => {
         tasksApi.retry();
         deadlineApi.reload();

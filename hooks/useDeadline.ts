@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getNextDeadlineISO } from '@/lib/deadline';
+import { performDevDayReset } from '@/lib/devReset';
 import { supabase } from '@/lib/supabase';
 import type { Deadline, DeadlineRow, DeadlineStatus } from '@/types/deadline';
 
@@ -38,6 +39,8 @@ export type UseDeadlineResult = {
   adjustQuota: (newQuota: number) => Promise<void>;
   /** Parks the deadline as complete (called when quota is confirmed met). */
   markComplete: () => Promise<void>;
+  /** Dev-only: restart the quota timer without changing tasks. */
+  devResetDay: () => Promise<void>;
   reload: () => void;
 };
 
@@ -284,6 +287,38 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     }
   }, [userId]);
 
+  const devResetDay = useCallback(async () => {
+    if (!userId) return;
+
+    const previous = deadlineRef.current;
+    if (!previous) {
+      setMutationError('Set a quota first — add a task to get started.');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const deadlineAt = getNextDeadlineISO();
+
+    setDeadline({
+      ...previous,
+      status: 'active',
+      tasksCompletedToday: 0,
+      deadlineAt,
+      lastResetAt: now,
+      lastQuotaAdjustedAt: null,
+    });
+
+    const result = await performDevDayReset(userId);
+
+    if (!result.ok) {
+      setDeadline(previous);
+      setMutationError(result.error);
+      return;
+    }
+
+    setDeadline(fromRow(result.row));
+  }, [userId]);
+
   const dismissMutationError = useCallback(() => setMutationError(null), []);
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -298,6 +333,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     runDailyReset,
     adjustQuota,
     markComplete,
+    devResetDay,
     reload,
   };
 }

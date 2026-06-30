@@ -100,31 +100,59 @@
 - [x] Timer counts down to end of day (midnight) rather than a
       user-chosen timestamp
 
-## 📋 Sprint 3 — Accountability Backend
+## 📋 Sprint 3 — Accountability Partner Setup & Onboarding
+
+- [ ] Onboarding flow scaffolded and shown only on first app launch
+- [ ] User display name input during onboarding, stored in Supabase
+      against user account
+- [ ] Accountability partner name and phone number entered manually
+      during onboarding (typed in — expo-contacts integration deferred
+      to Sprint 6)
+- [ ] Partner details stored in Supabase against user account
+- [ ] Informed consent copy shown before partner details are saved —
+      the user must explicitly acknowledge that their partner will
+      receive an automated SMS if they miss their daily quota
+- [ ] Custom SMS message input during onboarding — shown after consent,
+      stored in Supabase. If left blank, the default copy is used.
+- [ ] Default SMS copy implemented in Supabase, referencing partial
+      completion where applicable:
+        Full miss:     "[Name] didn't complete any of their tasks yesterday."
+        Partial miss:  "[Name] completed [X] of [Y] tasks yesterday."
+        Priority miss: "[Name] didn't complete any of their Priority
+                        tasks yesterday."
+- [ ] Custom message used in place of default when set, with the same
+      partial completion variables available as placeholders
+- [ ] Onboarding cannot be skipped — the app is not usable until
+      display name, partner details, and consent are completed
+- [ ] Partner details editable post-onboarding via a settings screen
+
+## 📋 Sprint 4 — Accountability Backend
 
 - [ ] Twilio account configured with a phone number
-- [ ] Supabase Edge Function: schedule Twilio SMS at deadline time
-      (default midnight that night) when daily reset fires without quota met
+- [ ] Supabase Edge Function: schedule-sms
+        Called when daily reset fires without quota met
+        Fetches user display name, partner phone number, daily_quota,
+        tasks_completed_today, and Priority task status from Supabase
+        Selects correct SMS copy based on completion state
+        Sends SMS immediately via Twilio API
+        Stores returned Twilio message SID in deadline record
+- [ ] Supabase Edge Function: cancel-sms
+        Called when daily quota is met before deadline expires
+        Fetches twilio_message_sid from deadline record
+        Cancels scheduled message via Twilio API if SID exists
+        Clears twilio_message_sid to null in Supabase on success
+        Returns gracefully if no SID exists or message already sent
 - [ ] Twilio message SID stored against deadline record in Supabase
-- [ ] Default SMS copy implemented, referencing partial completion
-      where applicable:
-        Full miss:    "[Name] didn't complete any of their tasks yesterday."
-        Partial miss: "[Name] completed [X] of [Y] tasks yesterday."
-        Priority miss: "[Name] didn't complete any of their Priority tasks
-                        yesterday."
-- [ ] Supabase Edge Function: cancel scheduled Twilio SMS via stored SID
-      when daily quota is met before deadline expires
-- [ ] Graceful handling if SMS already sent — late completion acknowledged
-      in UI without error
-
-## 📋 Sprint 4 — Accountability Partner Setup & Onboarding
-
-- [ ] Onboarding flow scaffolded
-- [ ] expo-contacts integration for partner selection
-- [ ] Partner name and phone number stored in Supabase against user account
-- [ ] Informed consent copy shown before partner is saved
-- [ ] Custom SMS message input (shown during onboarding, stored in Supabase)
-- [ ] Custom message used in place of default when set
+- [ ] Both Edge Functions called from existing client-side state
+      transition logic — schedule-sms on ACTIVE → EXPIRED,
+      cancel-sms on ACTIVE → COMPLETE
+- [ ] Both Edge Functions fail silently on the client — a Twilio
+      error must never crash the app or block a state transition
+- [ ] Graceful late completion: if quota is met after deadline and
+      SMS has already been sent, transition to COMPLETE normally
+      and display an acknowledgment — e.g. "Nice work finishing up.
+      Your accountability partner was notified earlier, but you
+      still got it done." Do not attempt cancellation.
 
 ## 📋 Sprint 5 — Auth & User Accounts
 
@@ -145,6 +173,12 @@
 - [ ] EAS Build configured for custom dev client
 - [ ] TestFlight internal testing
 - [ ] App Store listing prep
+
+### Contacts
+- [ ] expo-contacts integration added to accountability partner setup —
+      replace manual phone number entry with contact picker. Partner
+      name and number are pre-filled from the selected contact and
+      remain editable before saving.
 
 ### Notifications
 - [ ] expo-notifications permissions requested on first task creation

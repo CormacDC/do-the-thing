@@ -43,6 +43,15 @@ The default message reflects how the day actually went:
 
 You can replace the default with a custom message during onboarding.
 
+## SMS Consent
+
+Do The Thing sends automated SMS notifications to a user-designated 
+accountability partner. The app requires explicit informed consent 
+from the user during onboarding before any partner information is 
+saved or any messages are sent. Partners are designated voluntarily 
+by the user and messages are only sent when a user misses their 
+daily task quota.
+
 ### Push Notifications
 
 The app pre-schedules a sequence of local push notifications when you set your quota:

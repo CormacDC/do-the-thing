@@ -130,29 +130,31 @@
 
 - [ ] Twilio account configured with a phone number
 - [ ] Supabase Edge Function: schedule-sms
-        Called when daily reset fires without quota met
+        Called when the user sets their daily quota (ACTIVE state entered)
         Fetches user display name, partner phone number, daily_quota,
-        tasks_completed_today, and Priority task status from Supabase
-        Selects correct SMS copy based on completion state
-        Sends SMS immediately via Twilio API
-        Stores returned Twilio message SID in deadline record
+        and Priority task status from Supabase
+        Determines correct SMS copy template based on completion state
+        at the time of scheduling — note this will be re-evaluated at
+        send time since completion state isn't known yet, so schedule
+        with the full-miss copy as default; actual copy is determined
+        by cancel-sms not being called before send time
+        Schedules SMS via Twilio's message scheduling API for midnight
+        (DEADLINE_HOUR:DEADLINE_MINUTE from config)
+        Stores returned Twilio message SID in deadline record in Supabase
 - [ ] Supabase Edge Function: cancel-sms
         Called when daily quota is met before deadline expires
-        Fetches twilio_message_sid from deadline record
-        Cancels scheduled message via Twilio API if SID exists
+        (app is open by definition when quota is reached)
+        Fetches twilio_message_sid from deadline record in Supabase
+        Cancels the scheduled Twilio message via Twilio API using the SID
         Clears twilio_message_sid to null in Supabase on success
         Returns gracefully if no SID exists or message already sent
 - [ ] Twilio message SID stored against deadline record in Supabase
-- [ ] Both Edge Functions called from existing client-side state
-      transition logic — schedule-sms on ACTIVE → EXPIRED,
-      cancel-sms on ACTIVE → COMPLETE
+- [ ] schedule-sms called from client when state transitions to ACTIVE
+      (first task added, after EXPIRED, or after COMPLETE → ACTIVE)
+- [ ] cancel-sms called from client when state transitions to COMPLETE
+      (daily quota met — app is open by definition at this moment)
 - [ ] Both Edge Functions fail silently on the client — a Twilio
       error must never crash the app or block a state transition
-- [ ] Graceful late completion: if quota is met after deadline and
-      SMS has already been sent, transition to COMPLETE normally
-      and display an acknowledgment — e.g. "Nice work finishing up.
-      Your accountability partner was notified earlier, but you
-      still got it done." Do not attempt cancellation.
 
 ## 📋 Sprint 5 — Auth & User Accounts
 

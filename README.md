@@ -43,7 +43,7 @@ The default message reflects how the day actually went:
 
 You can replace the default with a custom message during onboarding.
 
-## SMS Consent
+### SMS Consent
 
 Do The Thing sends automated SMS notifications to a user-designated 
 accountability partner. The app requires explicit informed consent 

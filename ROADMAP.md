@@ -126,10 +126,10 @@
       display name, partner details, and consent are completed
 - [x] Partner details editable post-onboarding via a settings screen
 
-## 📋 Sprint 4 — Accountability Backend
+## ✅ Sprint 4 — Accountability Backend
 
-- [ ] Twilio account configured with a phone number
-- [ ] Supabase Edge Function: schedule-sms
+- [x] Twilio account configured with a phone number
+- [x] Supabase Edge Function: schedule-sms
         Called when the user sets their daily quota (ACTIVE state entered)
         Fetches user display name, partner phone number, daily_quota,
         and Priority task status from Supabase
@@ -141,19 +141,19 @@
         Schedules SMS via Twilio's message scheduling API for midnight
         (DEADLINE_HOUR:DEADLINE_MINUTE from config)
         Stores returned Twilio message SID in deadline record in Supabase
-- [ ] Supabase Edge Function: cancel-sms
+- [x] Supabase Edge Function: cancel-sms
         Called when daily quota is met before deadline expires
         (app is open by definition when quota is reached)
         Fetches twilio_message_sid from deadline record in Supabase
         Cancels the scheduled Twilio message via Twilio API using the SID
         Clears twilio_message_sid to null in Supabase on success
         Returns gracefully if no SID exists or message already sent
-- [ ] Twilio message SID stored against deadline record in Supabase
-- [ ] schedule-sms called from client when state transitions to ACTIVE
+- [x] Twilio message SID stored against deadline record in Supabase
+- [x] schedule-sms called from client when state transitions to ACTIVE
       (first task added, after EXPIRED, or after COMPLETE → ACTIVE)
-- [ ] cancel-sms called from client when state transitions to COMPLETE
+- [x] cancel-sms called from client when state transitions to COMPLETE
       (daily quota met — app is open by definition at this moment)
-- [ ] Both Edge Functions fail silently on the client — a Twilio
+- [x] Both Edge Functions fail silently on the client — a Twilio
       error must never crash the app or block a state transition
 
 ## 📋 Sprint 5 — Auth & User Accounts

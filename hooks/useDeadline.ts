@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  cancelAccountabilitySms,
+  scheduleAccountabilitySms,
+} from '@/lib/accountability';
 import { getNextDeadlineISO } from '@/lib/deadline';
 import { performDevDayReset } from '@/lib/devReset';
 import { supabase } from '@/lib/supabase';
@@ -139,6 +143,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       }
 
       setDeadline(fromRow(data));
+      scheduleAccountabilitySms(userId);
     },
     [userId],
   );
@@ -240,7 +245,10 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         if (__DEV__) console.warn('[Do The Thing] runDailyReset (complete→active) failed:', updateError);
         setDeadline(previous);
         setMutationError("We couldn't start the new day. Try again.");
+        return;
       }
+
+      scheduleAccountabilitySms(userId);
     }
   }, [userId]);
 
@@ -284,7 +292,10 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     if (updateError) {
       if (__DEV__) console.warn('[Do The Thing] markComplete failed:', updateError);
       setDeadline(previous);
+      return;
     }
+
+    cancelAccountabilitySms(userId);
   }, [userId]);
 
   const devResetDay = useCallback(async () => {
@@ -317,6 +328,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     }
 
     setDeadline(fromRow(result.row));
+    scheduleAccountabilitySms(userId);
   }, [userId]);
 
   const dismissMutationError = useCallback(() => setMutationError(null), []);

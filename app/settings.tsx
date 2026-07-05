@@ -10,16 +10,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router, Redirect } from 'expo-router';
+import { router, Redirect, type Href } from 'expo-router';
 
 import { Screen } from '@/components/Screen';
+import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { formatPhoneHint, isValidE164Phone } from '@/lib/phone';
+import { formatPhoneHint, isValidE164Phone, maskPhoneNumber } from '@/lib/phone';
 import { SMS_COPY, SMS_TOKEN_HINT } from '@/lib/smsCopy';
 import { replaceSmsTokens } from '@/lib/smsMessage';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function SettingsScreen() {
+  const auth = useAuth();
   const {
     profile,
     loading,
@@ -35,6 +37,8 @@ export default function SettingsScreen() {
   const [customSms, setCustomSms] = useState('');
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,7 +58,9 @@ export default function SettingsScreen() {
       setValidationError("Enter your partner's name.");
       return;
     }
-    if (!isValidE164Phone(partnerPhone)) {
+    const phoneToSave = editingPhone ? partnerPhone.trim() : profile!.partnerPhone;
+
+    if (!isValidE164Phone(phoneToSave)) {
       setValidationError(`Enter a valid phone number. ${formatPhoneHint()}`);
       return;
     }
@@ -62,14 +68,28 @@ export default function SettingsScreen() {
     setSaving(true);
     const ok = await updateProfileSettings({
       partnerName: partnerName.trim(),
-      partnerPhone: partnerPhone.trim(),
+      partnerPhone: phoneToSave,
       customSms: customSms.trim() || null,
     });
     setSaving(false);
 
     if (ok) {
+      setEditingPhone(false);
       router.back();
     }
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    const { error: signOutError } = await auth.signOut();
+    setSigningOut(false);
+
+    if (signOutError) {
+      setValidationError(signOutError);
+      return;
+    }
+
+    router.replace('/sign-in' as Href);
   };
 
   if (loading && !profile) {
@@ -98,6 +118,10 @@ export default function SettingsScreen() {
 
   if (!profile) {
     return <Redirect href="/onboarding" />;
+  }
+
+  if (!auth.session) {
+    return <Redirect href={'/sign-in' as Href} />;
   }
 
   const previewName = profile.displayName;
@@ -142,15 +166,31 @@ export default function SettingsScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Partner phone</Text>
-            <TextInput
-              style={styles.input}
-              value={partnerPhone}
-              onChangeText={setPartnerPhone}
-              keyboardType="phone-pad"
-              autoCorrect={false}
-              placeholder={formatPhoneHint()}
-              placeholderTextColor={colors.textMuted}
-            />
+            {editingPhone ? (
+              <TextInput
+                style={styles.input}
+                value={partnerPhone}
+                onChangeText={setPartnerPhone}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+                placeholder={formatPhoneHint()}
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+              />
+            ) : (
+              <View style={styles.phoneRow}>
+                <Text style={styles.maskedPhone}>{maskPhoneNumber(profile.partnerPhone)}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setPartnerPhone(profile.partnerPhone);
+                    setEditingPhone(true);
+                  }}
+                >
+                  <Text style={styles.editLink}>Edit</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           <View style={styles.field}>
@@ -200,6 +240,19 @@ export default function SettingsScreen() {
             onPress={handleSave}
           >
             <Text style={styles.saveLabel}>{saving ? 'Saving…' : 'Save changes'}</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={signingOut}
+            style={({ pressed }) => [
+              styles.signOutButton,
+              signingOut && styles.saveButtonDisabled,
+              pressed && !signingOut && styles.signOutButtonPressed,
+            ]}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.signOutLabel}>{signingOut ? 'Signing out…' : 'Sign out'}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -296,6 +349,34 @@ const styles = StyleSheet.create({
   saveLabel: {
     ...typography.label,
     color: colors.background,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  maskedPhone: {
+    ...typography.body,
+    color: colors.textMuted,
+  },
+  editLink: {
+    ...typography.label,
+    color: colors.text,
+  },
+  signOutButton: {
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  signOutButtonPressed: {
+    opacity: 0.85,
+  },
+  signOutLabel: {
+    ...typography.label,
+    color: colors.textMuted,
   },
   errorTitle: {
     ...typography.label,

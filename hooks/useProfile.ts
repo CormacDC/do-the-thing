@@ -65,7 +65,7 @@ export function useProfileController(userId: string | null): ProfileValue {
         setProfile(data ? fromRow(data) : null);
       } catch (err) {
         if (cancelled) return;
-        if (__DEV__) console.warn('[Do The Thing] load profile failed:', err);
+        if (__DEV__) console.warn('[Do The Thing] load profile failed');
         setError("We couldn't load your profile. Try again.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -103,7 +103,7 @@ export function useProfileController(userId: string | null): ProfileValue {
         setProfile(fromRow(data));
         return true;
       } catch (err) {
-        if (__DEV__) console.warn('[Do The Thing] create profile failed:', err);
+        if (__DEV__) console.warn('[Do The Thing] create profile failed');
         setMutationError("We couldn't save your profile. Try again.");
         return false;
       }
@@ -134,7 +134,7 @@ export function useProfileController(userId: string | null): ProfileValue {
         setProfile(fromRow(data));
         return true;
       } catch (err) {
-        if (__DEV__) console.warn('[Do The Thing] update profile failed:', err);
+        if (__DEV__) console.warn('[Do The Thing] update profile failed');
         setMutationError("We couldn't update your settings. Try again.");
         return false;
       }

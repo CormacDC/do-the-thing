@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Screen } from '@/components/Screen';
@@ -19,6 +19,10 @@ export default function OnboardingScreen() {
         </View>
       </Screen>
     );
+  }
+
+  if (!auth.session) {
+    return <Redirect href={'/sign-in' as Href} />;
   }
 
   if (auth.error) {

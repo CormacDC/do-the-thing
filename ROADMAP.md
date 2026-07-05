@@ -156,16 +156,25 @@
 - [x] Both Edge Functions fail silently on the client — a Twilio
       error must never crash the app or block a state transition
 
-## 📋 Sprint 5 — Auth & User Accounts
+## ✅ Sprint 5 — Auth & User Accounts
 
-- [ ] Supabase Auth configured
-- [ ] OAuth login implemented via Supabase's OAuth client library,
-      supporting Google and Apple, and custom email/password login
-- [ ] Sign up / sign in screens with OAuth provider buttons
-- [ ] User session managed in app
-- [ ] RLS policies written/updated if needed for all tables
-      (tasks, deadlines, users) to account for new login methods
-- [ ] Onboarding only shown to new users
+- [x] Supabase Auth configured (email/password)
+- [x] Email/password sign up and sign in
+- [x] Sign up / sign in screens
+- [x] User session managed in app (persisted across restarts, sign out,
+      expired sessions route to sign in)
+- [x] Anonymous session upgrade via updateUser on sign-up (preserves
+      existing data under the same auth.uid())
+- [x] RLS policies written/updated for all tables (tasks, deadlines,
+      profiles) — authenticated role, gated on auth.uid()
+- [x] Onboarding only shown to new users (no profiles row for auth.uid())
+- [x] Partner phone masked in settings UI; PII excluded from logs and
+      client-facing errors
+- [x] Sign out on settings screen
+
+### Deferred to pre-launch (Sprint 6)
+- [ ] Google and Apple OAuth (requires provider dashboard setup;
+      linkIdentity helpers ready in lib/authActions.ts)
 
 ## 📋 Sprint 6 — Polish & Launch Prep
 

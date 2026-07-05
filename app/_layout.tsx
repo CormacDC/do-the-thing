@@ -20,6 +20,11 @@ export default function RootLayout() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen
+              name="sign-in"
+              options={{ gestureEnabled: false, animation: 'fade' }}
+            />
+            <Stack.Screen name="sign-up" />
+            <Stack.Screen
               name="onboarding"
               options={{ gestureEnabled: false, animation: 'fade' }}
             />

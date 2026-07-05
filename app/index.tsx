@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 
 import { Screen } from '@/components/Screen';
 import { TaskList } from '@/components/TaskList';
@@ -19,6 +19,10 @@ export default function HomeScreen() {
         </View>
       </Screen>
     );
+  }
+
+  if (!auth.session) {
+    return <Redirect href={'/sign-in' as Href} />;
   }
 
   if (error && !profile) {

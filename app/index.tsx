@@ -1,13 +1,19 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Redirect, type Href } from 'expo-router';
 
 import { Screen } from '@/components/Screen';
 import { TaskList } from '@/components/TaskList';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SecondaryButton } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/hooks/useTheme';
+import type { Theme } from '@/lib/theme';
 
 export default function HomeScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const auth = useAuth();
   const { profile, loading, error, retry } = useProfile();
 
@@ -15,7 +21,7 @@ export default function HomeScreen() {
     return (
       <Screen>
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.textMuted} />
+          <ActivityIndicator color={theme.colors.textSecondary} />
         </View>
       </Screen>
     );
@@ -28,13 +34,11 @@ export default function HomeScreen() {
   if (error && !profile) {
     return (
       <Screen>
-        <View style={styles.centered}>
-          <Text style={styles.errorTitle}>Couldn&apos;t load profile</Text>
-          <Text style={styles.errorBody}>{error}</Text>
-          <Pressable accessibilityRole="button" style={styles.retry} onPress={retry}>
-            <Text style={styles.retryLabel}>Try again</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          title="Couldn't load profile"
+          body={error}
+          action={<SecondaryButton label="Try again" onPress={retry} />}
+        />
       </Screen>
     );
   }
@@ -50,33 +54,14 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  errorTitle: {
-    ...typography.label,
-    color: colors.text,
-  },
-  errorBody: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  retry: {
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  retryLabel: {
-    ...typography.label,
-    color: colors.text,
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+    },
+  });
+}

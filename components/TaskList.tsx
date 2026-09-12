@@ -1,24 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import {
+  CircleCheck,
+  ListTodo,
+  Pencil,
+  Plus,
+  Settings,
+  TriangleAlert,
+} from 'lucide-react-native';
 
 import { Countdown } from '@/components/Countdown';
 import { DevResetButton } from '@/components/DevResetButton';
 import { QuotaPicker } from '@/components/QuotaPicker';
 import { TaskRow } from '@/components/TaskRow';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { Banner } from '@/components/ui/Banner';
+import {
+  IconButton,
+  PrimaryButton,
+  SecondaryButton,
+  TextButton,
+} from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Surface } from '@/components/ui/Surface';
+import { TextField } from '@/components/ui/TextField';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountabilityTargets } from '@/hooks/useAccountabilityTargets';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { ENABLE_DEV_RESET } from '@/lib/config';
+import type { Theme } from '@/lib/theme';
 import { AppState } from '@/types/appState';
 import type { Deadline } from '@/types/deadline';
 import type { Task } from '@/types/task';
@@ -35,6 +53,8 @@ type ExpiredSnapshot = {
 };
 
 export function TaskList() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const auth = useAuth();
   const {
     state,
@@ -56,9 +76,6 @@ export function TaskList() {
   const { targetCount } = useAccountabilityTargets(auth.userId);
 
   const [draft, setDraft] = useState('');
-  // A task typed while no active quota exists is held here until the user
-  // picks a quota — the two are committed together so a task never exists
-  // without one. Null means no add is in flight.
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const [settingQuota, setSettingQuota] = useState(false);
   const [showAdjustPicker, setShowAdjustPicker] = useState(false);
@@ -66,9 +83,6 @@ export function TaskList() {
 
   const [gateError, setGateError] = useState<string | null>(null);
 
-  // Capture a snapshot of quota progress whenever the state transitions from
-  // ACTIVE to EXPIRED, so the expiry copy can show accurate counts even after
-  // tasks_completed_today is zeroed server-side.
   const [expiredSnapshot, setExpiredSnapshot] = useState<ExpiredSnapshot | null>(null);
   const prevStateRef = useRef<AppState>(state);
 
@@ -87,12 +101,8 @@ export function TaskList() {
   }, [state, deadline, tasks]);
 
   const isExpired = state === AppState.EXPIRED;
-  // Tasks can be completed in ACTIVE and COMPLETE states. In COMPLETE, the
-  // quota has already been met so completions are recorded but don't count.
   const tasksLocked = state === AppState.EMPTY || state === AppState.EXPIRED;
   const canSubmit = draft.trim().length > 0 && !!auth.userId && !isExpired;
-  // Quota picker requires notify targets. When expired without targets, the
-  // gate banner points the user to Settings instead of a dead-end modal.
   const pickerVisible =
     pendingTitle !== null || (isExpired && targetCount >= 1);
 
@@ -165,14 +175,11 @@ export function TaskList() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Do The Thing</Text>
-          <Pressable
-            accessibilityRole="button"
+          <IconButton
+            icon={Settings}
             accessibilityLabel="Open settings"
-            style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
             onPress={() => router.push('/settings')}
-          >
-            <Text style={styles.settingsLabel}>Settings</Text>
-          </Pressable>
+          />
         </View>
         <Text style={styles.subtitle}>
           Complete your daily quota before midnight.
@@ -180,31 +187,28 @@ export function TaskList() {
         {ENABLE_DEV_RESET ? <DevResetButton /> : null}
       </View>
 
-      {gateError || mutationError ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss error"
-          style={styles.banner}
+      {gateError ? (
+        <Banner
+          tone="warning"
+          body={gateError}
+          actionLabel="Open Settings"
           onPress={() => {
-            if (gateError) {
-              setGateError(null);
-              router.push('/settings');
-              return;
-            }
-            dismissMutationError();
+            setGateError(null);
+            router.push('/settings');
           }}
-        >
-          <Text style={styles.bannerText}>{gateError ?? mutationError}</Text>
-          <Text style={styles.bannerDismiss}>
-            {gateError ? 'Open Settings' : 'Dismiss'}
-          </Text>
-        </Pressable>
+        />
+      ) : mutationError ? (
+        <Banner
+          tone="error"
+          body={mutationError}
+          actionLabel="Dismiss"
+          onPress={dismissMutationError}
+        />
       ) : null}
 
       <TimerArea
         state={state}
         deadline={deadline}
-        tasks={tasks}
         expiredSnapshot={expiredSnapshot}
         onExpire={expireDeadline}
         canAdjustQuota={canAdjustQuota}
@@ -224,10 +228,9 @@ export function TaskList() {
       />
 
       <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
+        <TextField
+          containerStyle={styles.composerField}
           placeholder="What needs doing?"
-          placeholderTextColor={colors.textMuted}
           value={draft}
           onChangeText={setDraft}
           onSubmitEditing={handleSubmit}
@@ -236,19 +239,13 @@ export function TaskList() {
           autoCorrect={false}
           editable={!!auth.userId && !isExpired}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canSubmit }}
-          style={({ pressed }) => [
-            styles.addButton,
-            !canSubmit && styles.addButtonDisabled,
-            pressed && canSubmit && styles.addButtonPressed,
-          ]}
+        <PrimaryButton
+          label="Add"
+          icon={Plus}
+          fullWidth={false}
           disabled={!canSubmit}
           onPress={handleSubmit}
-        >
-          <Text style={styles.addButtonLabel}>Add</Text>
-        </Pressable>
+        />
       </View>
 
       <QuotaPicker
@@ -276,7 +273,6 @@ export function TaskList() {
 type TimerAreaProps = {
   state: AppState;
   deadline: Deadline | null;
-  tasks: Task[];
   expiredSnapshot: ExpiredSnapshot | null;
   onExpire: () => void;
   canAdjustQuota: boolean;
@@ -293,12 +289,15 @@ function TimerArea({
   onAdjustQuota,
   adjustingQuota,
 }: TimerAreaProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (state === AppState.ACTIVE) {
     const completed = deadline?.tasksCompletedToday ?? 0;
     const quota = deadline?.dailyQuota ?? 0;
 
     return (
-      <View>
+      <Surface>
         {deadline ? (
           <Countdown
             key={deadline.deadlineAt}
@@ -312,30 +311,20 @@ function TimerArea({
               {completed} of {quota} {quota === 1 ? 'task' : 'tasks'} completed today
             </Text>
             {canAdjustQuota ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Adjust today's quota"
+              <TextButton
+                label={adjustingQuota ? 'Saving…' : 'Adjust'}
+                icon={Pencil}
                 disabled={adjustingQuota}
-                style={({ pressed }) => [
-                  styles.adjustButton,
-                  pressed && styles.adjustButtonPressed,
-                ]}
                 onPress={onAdjustQuota}
-              >
-                <Text style={styles.adjustLabel}>
-                  {adjustingQuota ? 'Saving…' : 'Adjust'}
-                </Text>
-              </Pressable>
+              />
             ) : null}
           </View>
         ) : null}
-      </View>
+      </Surface>
     );
   }
 
   if (state === AppState.EXPIRED) {
-    // Use the snapshot when available (live transition); fall back to deadline
-    // values for the app-open-after-missed-reset case.
     const completed = expiredSnapshot?.completed ?? deadline?.tasksCompletedToday ?? 0;
     const quota = expiredSnapshot?.quota ?? deadline?.dailyQuota ?? 0;
     const hasPriorityTasks = expiredSnapshot?.hasPriorityTasks ?? false;
@@ -352,10 +341,37 @@ function TimerArea({
     }
 
     return (
-      <View style={styles.expired}>
-        <Text style={styles.expiredLabel}>Day ended</Text>
+      <Surface
+        style={{
+          backgroundColor: theme.colors.warningMuted,
+          borderColor: theme.colors.warning,
+        }}
+      >
+        <View style={styles.statusHeader}>
+          <AppIcon icon={TriangleAlert} color={theme.colors.warning} size="md" />
+          <Text style={styles.expiredLabel}>Day ended</Text>
+        </View>
         <Text style={styles.expiredMessage}>{message}</Text>
-      </View>
+      </Surface>
+    );
+  }
+
+  if (state === AppState.COMPLETE) {
+    return (
+      <Surface
+        style={{
+          backgroundColor: theme.colors.accentMuted,
+          borderColor: theme.colors.accentMuted,
+        }}
+      >
+        <View style={styles.statusHeader}>
+          <AppIcon icon={CircleCheck} color={theme.colors.accent} size="md" />
+          <Text style={styles.completeLabel}>Quota met</Text>
+        </View>
+        <Text style={styles.completeMessage}>
+          Extra completions are allowed — they just don&apos;t count toward the quota.
+        </Text>
+      </Surface>
     );
   }
 
@@ -383,13 +399,15 @@ function Body({
   onTogglePriority,
   onRetry,
 }: BodyProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (auth.error) {
     return (
-      <CenteredState
+      <EmptyState
         title="Can't sign in"
         body={auth.error}
-        actionLabel="Try again"
-        onAction={auth.retry}
+        action={<SecondaryButton label="Try again" onPress={auth.retry} />}
       />
     );
   }
@@ -397,18 +415,17 @@ function Body({
   if (auth.loading || (loading && tasks.length === 0)) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.textMuted} />
+        <ActivityIndicator color={theme.colors.textSecondary} />
       </View>
     );
   }
 
   if (error && tasks.length === 0) {
     return (
-      <CenteredState
+      <EmptyState
         title="Couldn't load tasks"
         body={error}
-        actionLabel="Try again"
-        onAction={onRetry}
+        action={<SecondaryButton label="Try again" onPress={onRetry} />}
       />
     );
   }
@@ -430,224 +447,103 @@ function Body({
         tasks.length === 0 ? styles.listContentEmpty : styles.listContent
       }
       ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Nothing yet.</Text>
-          <Text style={styles.emptyBody}>
-            Add a task. Commit to a quota. Your friends get a push if you
-            don&apos;t.
-          </Text>
-        </View>
+        <EmptyState
+          icon={ListTodo}
+          title="Nothing yet."
+          body="Add a task. Commit to a quota. Your friends get a push if you don't."
+        />
       }
     />
   );
 }
 
-type CenteredStateProps = {
-  title: string;
-  body: string;
-  actionLabel?: string;
-  onAction?: () => void;
-};
-
-function CenteredState({ title, body, actionLabel, onAction }: CenteredStateProps) {
-  return (
-    <View style={styles.centered}>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyBody}>{body}</Text>
-      {actionLabel && onAction ? (
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
-          onPress={onAction}
-        >
-          <Text style={styles.retryLabel}>{actionLabel}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      gap: theme.spacing.sm,
+    },
+    header: {
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.md,
+      gap: theme.spacing.sm,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing.sm,
+    },
+    title: {
+      ...theme.typography.title,
+      color: theme.colors.textPrimary,
+      flex: 1,
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing.sm,
+    },
+    progressText: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      flex: 1,
+    },
+    statusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    },
+    expiredLabel: {
+      ...theme.typography.label,
+      color: theme.colors.warning,
+    },
+    expiredMessage: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      lineHeight: 18,
+    },
+    completeLabel: {
+      ...theme.typography.label,
+      color: theme.colors.textPrimary,
+    },
+    completeMessage: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      lineHeight: 18,
+    },
+    list: {
+      flex: 1,
+    },
+    listContent: {
+      flexGrow: 1,
+    },
+    listContentEmpty: {
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+    },
+    composerField: {
+      flex: 1,
+    },
+  });
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  settingsButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  settingsPressed: {
-    opacity: 0.5,
-  },
-  settingsLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 8,
-    backgroundColor: colors.priorityMuted,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.priority,
-  },
-  bannerText: {
-    ...typography.caption,
-    color: colors.priority,
-    flex: 1,
-  },
-  bannerDismiss: {
-    ...typography.caption,
-    color: colors.priority,
-    fontWeight: '600',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  progressText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  adjustButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  adjustButtonPressed: {
-    opacity: 0.5,
-  },
-  adjustLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  expired: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.priority,
-    backgroundColor: colors.priorityMuted,
-    gap: spacing.xs,
-  },
-  expiredLabel: {
-    ...typography.label,
-    color: colors.priority,
-  },
-  expiredMessage: {
-    ...typography.caption,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  listContentEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  empty: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  emptyTitle: {
-    ...typography.label,
-    color: colors.text,
-  },
-  emptyBody: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retry: {
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  retryPressed: {
-    opacity: 0.7,
-  },
-  retryLabel: {
-    ...typography.label,
-    color: colors.text,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  input: {
-    flex: 1,
-    ...typography.body,
-    color: colors.text,
-    backgroundColor: colors.inputBackground,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  addButton: {
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 10,
-    backgroundColor: colors.text,
-  },
-  addButtonDisabled: {
-    opacity: 0.3,
-  },
-  addButtonPressed: {
-    opacity: 0.85,
-  },
-  addButtonLabel: {
-    ...typography.label,
-    color: colors.background,
-  },
-});

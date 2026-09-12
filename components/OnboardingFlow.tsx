@@ -1,30 +1,37 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { MessageSquare, UserPlus, UserRound } from 'lucide-react-native';
 
+import { Banner } from '@/components/ui/Banner';
+import { PrimaryButton, SecondaryButton, TextButton } from '@/components/ui/Button';
+import { FriendCodeCard } from '@/components/ui/FriendCodeCard';
+import { Surface } from '@/components/ui/Surface';
+import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { useProfile } from '@/hooks/useProfile';
+import { useTheme } from '@/hooks/useTheme';
 import {
   ACCOUNTABILITY_COPY,
   ACCOUNTABILITY_DEFAULT_PREVIEW,
   ACCOUNTABILITY_TOKEN_HINT,
 } from '@/lib/accountabilityCopy';
 import { replaceAccountabilityTokens } from '@/lib/accountabilityMessage';
-import { colors, spacing, typography } from '@/lib/theme';
+import type { Theme } from '@/lib/theme';
 
 type Step = 1 | 2 | 3;
 
 export function OnboardingFlow() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { userId } = useAuth();
   const { createProfile, completeOnboarding, profile, mutationError, dismissMutationError } =
     useProfile();
@@ -124,10 +131,9 @@ export function OnboardingFlow() {
             title="What should we call you?"
             subtitle="Friends will see this name in accountability notifications."
           >
-            <TextInput
-              style={styles.input}
+            <TextField
+              icon={UserRound}
               placeholder="Display name"
-              placeholderTextColor={colors.textMuted}
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
@@ -139,7 +145,7 @@ export function OnboardingFlow() {
             />
             <PrimaryButton
               label={submitting ? 'Saving…' : 'Continue'}
-              disabled={submitting}
+              loading={submitting}
               onPress={() => {
                 void handleContinueStep1();
               }}
@@ -152,14 +158,10 @@ export function OnboardingFlow() {
             title="Add friends"
             subtitle="Share your code so friends with Do The Thing can add you. You can also enter theirs now — optional."
           >
-            <View style={styles.codeBox}>
-              <Text style={styles.codeLabel}>Your friend code</Text>
-              <Text style={styles.codeValue}>{myCode}</Text>
-            </View>
-            <TextInput
-              style={styles.input}
+            <FriendCodeCard code={myCode} hint="" />
+            <TextField
+              icon={UserPlus}
               placeholder="Friend's code (optional)"
-              placeholderTextColor={colors.textMuted}
               value={friendCodeInput}
               onChangeText={setFriendCodeInput}
               autoCapitalize="characters"
@@ -176,13 +178,13 @@ export function OnboardingFlow() {
             {friendRequestNote ? (
               <Text style={styles.noteText}>{friendRequestNote}</Text>
             ) : null}
-            <View style={styles.consentBox}>
+            <Surface>
               <Text style={styles.consentText}>
                 Selected friends will get a push notification if you miss your daily quota.
                 You choose who is notified in Settings. At least one notify target is required
                 before you can set a quota.
               </Text>
-            </View>
+            </Surface>
             <PrimaryButton label="Continue" onPress={handleContinueStep2} />
           </StepShell>
         ) : null}
@@ -192,7 +194,7 @@ export function OnboardingFlow() {
             title="Customize the message?"
             subtitle="Optional. Leave blank to use the default push notification copy."
           >
-            <View style={styles.defaultCopyBox}>
+            <Surface>
               <Text style={styles.defaultCopyLabel}>Default message</Text>
               <Text style={styles.defaultCopyText}>
                 {replaceAccountabilityTokens(ACCOUNTABILITY_DEFAULT_PREVIEW, {
@@ -210,25 +212,23 @@ export function OnboardingFlow() {
                   quota: 3,
                 })}
               </Text>
-            </View>
-            <TextInput
-              style={[styles.input, styles.textArea]}
+            </Surface>
+            <TextField
+              icon={MessageSquare}
               placeholder="Custom message (optional)"
-              placeholderTextColor={colors.textMuted}
               value={customMessage}
               onChangeText={setCustomMessage}
               multiline
-              textAlignVertical="top"
               autoCorrect={false}
             />
             <PrimaryButton
               label={submitting ? 'Saving…' : 'Save and continue'}
-              disabled={submitting}
+              loading={submitting}
               onPress={() => {
                 void handleFinishWithCustom();
               }}
             />
-            <SecondaryButton
+            <TextButton
               label={submitting ? 'Saving…' : 'Use default message'}
               disabled={submitting}
               onPress={() => {
@@ -239,19 +239,12 @@ export function OnboardingFlow() {
         ) : null}
 
         {errorMessage ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss error"
-            style={styles.errorBanner}
-            onPress={clearErrors}
-          >
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </Pressable>
+          <Banner tone="error" body={errorMessage} onPress={clearErrors} />
         ) : null}
 
         {submitting ? (
           <View style={styles.savingOverlay}>
-            <ActivityIndicator color={colors.textMuted} />
+            <ActivityIndicator color={theme.colors.textSecondary} />
           </View>
         ) : null}
       </ScrollView>
@@ -262,10 +255,13 @@ export function OnboardingFlow() {
 type StepShellProps = {
   title: string;
   subtitle: string;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 function StepShell({ title, subtitle, children }: StepShellProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.step}>
       <Text style={styles.title}>{title}</Text>
@@ -275,206 +271,79 @@ function StepShell({ title, subtitle, children }: StepShellProps) {
   );
 }
 
-type PrimaryButtonProps = {
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-};
-
-function PrimaryButton({ label, disabled = false, onPress }: PrimaryButtonProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.primaryButton,
-        disabled && styles.primaryButtonDisabled,
-        pressed && !disabled && styles.primaryButtonPressed,
-      ]}
-      onPress={onPress}
-    >
-      <Text style={styles.primaryButtonLabel}>{label}</Text>
-    </Pressable>
-  );
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
+      gap: theme.spacing.lg,
+    },
+    progress: {
+      gap: theme.spacing.sm,
+    },
+    progressLabel: {
+      ...theme.typography.overline,
+      color: theme.colors.textSecondary,
+    },
+    progressTrack: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: theme.colors.accent,
+      borderRadius: 2,
+    },
+    step: {
+      gap: theme.spacing.md,
+    },
+    title: {
+      ...theme.typography.title,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
+    stepBody: {
+      gap: theme.spacing.md,
+      marginTop: theme.spacing.sm,
+    },
+    noteText: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+    },
+    consentText: {
+      ...theme.typography.body,
+      color: theme.colors.textPrimary,
+      lineHeight: 24,
+    },
+    defaultCopyLabel: {
+      ...theme.typography.label,
+      color: theme.colors.textPrimary,
+    },
+    defaultCopyText: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
+    defaultCopyHint: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+    },
+    defaultCopyExamples: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    savingOverlay: {
+      alignItems: 'center',
+      paddingTop: theme.spacing.sm,
+    },
+  });
 }
-
-type SecondaryButtonProps = {
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-};
-
-function SecondaryButton({ label, disabled = false, onPress }: SecondaryButtonProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      style={styles.secondaryButton}
-      onPress={onPress}
-    >
-      <Text style={styles.secondaryButtonLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.lg,
-  },
-  progress: {
-    gap: spacing.sm,
-  },
-  progressLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.text,
-    borderRadius: 2,
-  },
-  step: {
-    gap: spacing.md,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  stepBody: {
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  input: {
-    ...typography.body,
-    color: colors.text,
-    backgroundColor: colors.inputBackground,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  textArea: {
-    minHeight: 112,
-    paddingTop: spacing.sm + 2,
-  },
-  codeBox: {
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.inputBackground,
-    gap: spacing.xs,
-    alignItems: 'center',
-  },
-  codeLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  codeValue: {
-    ...typography.title,
-    color: colors.text,
-    letterSpacing: 4,
-    fontVariant: ['tabular-nums'],
-  },
-  noteText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  consentBox: {
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.inputBackground,
-  },
-  consentText: {
-    ...typography.body,
-    color: colors.text,
-    lineHeight: 24,
-  },
-  defaultCopyBox: {
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  defaultCopyLabel: {
-    ...typography.label,
-    color: colors.text,
-  },
-  defaultCopyText: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  defaultCopyHint: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  defaultCopyExamples: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  primaryButton: {
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-  },
-  primaryButtonDisabled: {
-    opacity: 0.4,
-  },
-  primaryButtonPressed: {
-    opacity: 0.85,
-  },
-  primaryButtonLabel: {
-    ...typography.label,
-    color: colors.background,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  secondaryButtonLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  errorBanner: {
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.priorityMuted,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.priority,
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.priority,
-  },
-  savingOverlay: {
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-  },
-});

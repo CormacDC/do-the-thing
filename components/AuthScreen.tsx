@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,7 +12,9 @@ import {
 import { Link, type Href } from 'expo-router';
 
 import { Screen } from '@/components/Screen';
-import { colors, spacing, typography } from '@/lib/theme';
+import { SecondaryButton } from '@/components/ui/Button';
+import { useTheme } from '@/hooks/useTheme';
+import type { Theme } from '@/lib/theme';
 
 type AuthScreenLayoutProps = {
   title: string;
@@ -29,6 +31,9 @@ export function AuthScreenLayout({
   footer,
   loading = false,
 }: AuthScreenLayoutProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -48,7 +53,7 @@ export function AuthScreenLayout({
 
           {loading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color={colors.textMuted} />
+              <ActivityIndicator color={theme.colors.textSecondary} />
             </View>
           ) : null}
 
@@ -66,33 +71,21 @@ type OAuthButtonsProps = {
 };
 
 export function OAuthButtons({ onGoogle, onApple, disabled = false }: OAuthButtonsProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.oauthGroup}>
-      <Pressable
-        accessibilityRole="button"
+      <SecondaryButton
+        label="Continue with Google"
         disabled={disabled}
-        style={({ pressed }) => [
-          styles.oauthButton,
-          disabled && styles.buttonDisabled,
-          pressed && !disabled && styles.buttonPressed,
-        ]}
         onPress={onGoogle}
-      >
-        <Text style={styles.oauthLabel}>Continue with Google</Text>
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
+      />
+      <SecondaryButton
+        label="Continue with Apple"
         disabled={disabled}
-        style={({ pressed }) => [
-          styles.oauthButton,
-          disabled && styles.buttonDisabled,
-          pressed && !disabled && styles.buttonPressed,
-        ]}
         onPress={onApple}
-      >
-        <Text style={styles.oauthLabel}>Continue with Apple</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -104,6 +97,9 @@ type AuthLinkProps = {
 };
 
 export function AuthLink({ prompt, href, label }: AuthLinkProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.linkRow}>
       <Text style={styles.linkPrompt}>{prompt}</Text>
@@ -116,131 +112,53 @@ export function AuthLink({ prompt, href, label }: AuthLinkProps) {
   );
 }
 
-export const authFieldStyles = StyleSheet.create({
-  field: {
-    gap: spacing.sm,
-  },
-  label: {
-    ...typography.label,
-    color: colors.text,
-  },
-  input: {
-    ...typography.body,
-    color: colors.text,
-    backgroundColor: colors.inputBackground,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  dividerLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  primaryButton: {
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-  },
-  primaryButtonDisabled: {
-    opacity: 0.4,
-  },
-  primaryButtonPressed: {
-    opacity: 0.85,
-  },
-  primaryLabel: {
-    ...typography.label,
-    color: colors.background,
-  },
-  errorBanner: {
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.priorityMuted,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.priority,
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.priority,
-  },
-});
-
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
-    gap: spacing.lg,
-  },
-  header: {
-    gap: spacing.sm,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  oauthGroup: {
-    gap: spacing.sm,
-  },
-  oauthButton: {
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.inputBackground,
-    alignItems: 'center',
-  },
-  oauthLabel: {
-    ...typography.label,
-    color: colors.text,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  loadingRow: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  footer: {
-    marginTop: spacing.md,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  linkPrompt: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  linkLabel: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: '600',
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingVertical: theme.spacing.xxl,
+      gap: theme.spacing.lg,
+    },
+    header: {
+      gap: theme.spacing.sm,
+    },
+    title: {
+      ...theme.typography.title,
+      color: theme.colors.textPrimary,
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
+    loadingRow: {
+      alignItems: 'center',
+      paddingVertical: theme.spacing.sm,
+    },
+    footer: {
+      marginTop: theme.spacing.md,
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    },
+    linkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+    },
+    linkPrompt: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+    },
+    linkLabel: {
+      ...theme.typography.caption,
+      color: theme.colors.accent,
+      fontWeight: '600',
+    },
+    oauthGroup: {
+      gap: theme.spacing.sm,
+    },
+  });
+}

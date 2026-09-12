@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { RotateCcw } from 'lucide-react-native';
 
+import { AppIcon } from '@/components/ui/AppIcon';
 import { useAppState } from '@/hooks/useAppState';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/hooks/useTheme';
+import type { Theme } from '@/lib/theme';
 
 export function DevResetButton() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { deadline, loading, devResetDay } = useAppState();
   const [resetting, setResetting] = useState(false);
 
@@ -30,41 +35,49 @@ export function DevResetButton() {
         ]}
         onPress={handlePress}
       >
-        <Text style={styles.label}>{resetting ? 'Resetting…' : 'Dev: Reset day'}</Text>
+        <AppIcon icon={RotateCcw} color={theme.colors.textSecondary} size="sm" />
+        <Text style={styles.label}>
+          {resetting ? 'Resetting…' : 'Dev: Reset day'}
+        </Text>
       </Pressable>
       <Text style={styles.hint}>Restarts quota timer. Tasks unchanged.</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs,
-    paddingBottom: spacing.sm,
-  },
-  button: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonPressed: {
-    opacity: 0.7,
-  },
-  label: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: {
+      gap: theme.spacing.xs,
+      paddingBottom: theme.spacing.sm,
+    },
+    button: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.radius.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.borderStrong,
+      borderStyle: 'dashed',
+    },
+    buttonDisabled: {
+      opacity: 0.4,
+    },
+    buttonPressed: {
+      opacity: 0.7,
+    },
+    label: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    hint: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
+    },
+  });
+}

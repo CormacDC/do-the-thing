@@ -2,12 +2,23 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { PushTokenRegistrar } from '@/components/PushTokenRegistrar';
+import { useTheme } from '@/hooks/useTheme';
 import { AppStateProvider } from '@/lib/appState';
 import { AuthProvider } from '@/lib/auth';
 import { ProfileProvider } from '@/lib/profile';
-import { colors } from '@/lib/theme';
+import { ThemeProvider } from '@/lib/ThemeProvider';
 
 export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
+  );
+}
+
+function RootLayoutInner() {
+  const theme = useTheme();
+
   return (
     <AuthProvider>
       <ProfileProvider>
@@ -17,7 +28,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
+              contentStyle: { backgroundColor: theme.colors.background },
             }}
           >
             <Stack.Screen name="index" />

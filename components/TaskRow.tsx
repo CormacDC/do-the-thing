@@ -1,6 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Check, Star } from 'lucide-react-native';
 
-import { colors, spacing, typography } from '@/lib/theme';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { useTheme } from '@/hooks/useTheme';
+import type { Theme } from '@/lib/theme';
 import type { Task } from '@/types/task';
 
 type TaskRowProps = {
@@ -17,6 +21,9 @@ export function TaskRow({
   onToggleComplete,
   onTogglePriority,
 }: TaskRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={[styles.row, disabled && styles.rowDisabled]}>
       <Pressable
@@ -28,7 +35,13 @@ export function TaskRow({
         style={[styles.checkbox, task.isComplete && styles.checkboxComplete]}
         onPress={() => onToggleComplete(task.id)}
       >
-        {task.isComplete ? <Text style={styles.checkmark}>✓</Text> : null}
+        {task.isComplete ? (
+          <AppIcon
+            icon={Check}
+            size="sm"
+            color={theme.colors.textOnAccent}
+          />
+        ) : null}
       </Pressable>
 
       <Text
@@ -44,73 +57,60 @@ export function TaskRow({
         accessibilityLabel={task.isPriority ? 'Remove priority' : 'Mark as priority'}
         hitSlop={8}
         disabled={disabled}
-        style={[styles.priorityButton, task.isPriority && styles.priorityActive]}
+        style={styles.priorityHit}
         onPress={() => onTogglePriority(task.id)}
       >
-        <Text style={[styles.priorityLabel, task.isPriority && styles.priorityLabelActive]}>
-          {task.isPriority ? 'Priority' : 'Set'}
-        </Text>
+        <AppIcon
+          icon={Star}
+          size="md"
+          color={task.isPriority ? theme.colors.priority : theme.colors.textTertiary}
+          fill={task.isPriority ? theme.colors.priority : 'none'}
+        />
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  rowDisabled: {
-    opacity: 0.6,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxComplete: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
-  checkmark: {
-    color: colors.background,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  title: {
-    flex: 1,
-    ...typography.body,
-    color: colors.text,
-  },
-  titleComplete: {
-    color: colors.complete,
-    textDecorationLine: 'line-through',
-  },
-  priorityButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  priorityActive: {
-    backgroundColor: colors.priorityMuted,
-    borderColor: colors.priority,
-  },
-  priorityLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  priorityLabelActive: {
-    color: colors.priority,
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    rowDisabled: {
+      opacity: 0.6,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.colors.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxComplete: {
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
+    },
+    title: {
+      flex: 1,
+      ...theme.typography.body,
+      color: theme.colors.textPrimary,
+    },
+    titleComplete: {
+      color: theme.colors.textTertiary,
+      textDecorationLine: 'line-through',
+    },
+    priorityHit: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

@@ -1,17 +1,8 @@
--- Hourly poller for dispatch-accountability via pg_cron + pg_net.
---
--- This is a poller, not "the midnight job." Each user's deadline_at is their
--- local DEADLINE_HOUR:DEADLINE_MINUTE stored as timestamptz. A single
--- 00:00 UTC (or any one wall-clock) cron would miss most users.
--- Hourly-on-the-hour is enough: punishments are at most ~1 hour late, and
--- missed ticks retry on the next hour instead of the next day.
---
--- The Edge Function only claims rows where status=active, accountability
--- is pending, deadline_at <= now(), and accountability_sent_at is null.
--- Most ticks find zero rows and return immediately.
---
--- Credentials: originally app.settings GUCs (often permission-denied on hosted
--- Supabase). 20260912000003 reads Vault secrets SUPABASE_URL and CRON_SECRET.
+-- Upgrade already-applied 20260912000001 installs:
+-- 1. Poll hourly on the hour instead of every minute.
+-- 2. Replace inline SELECT net.http_post(...) (OOM-prone with empty URL /
+--    unbounded net._http_response) with public.invoke_dispatch_accountability().
+-- Credentials: 20260912000003 reads Vault secrets SUPABASE_URL and CRON_SECRET.
 
 create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron with schema pg_catalog;
@@ -29,7 +20,6 @@ begin
   project_url := nullif(trim(current_setting('app.settings.supabase_url', true)), '');
   cron_secret := nullif(trim(current_setting('app.settings.cron_secret', true)), '');
 
-  -- Empty URL made pg_net POST to a relative path and OOM the worker.
   if project_url is null or cron_secret is null then
     raise notice 'dispatch-accountability skipped: set app.settings.supabase_url and app.settings.cron_secret';
     return;
@@ -45,7 +35,6 @@ begin
     timeout_milliseconds := 10000
   );
 
-  -- pg_net stores every response; unbounded growth OOMs the worker.
   begin
     delete from net._http_response
     where created < now() - interval '2 days';

@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
+import { Lock, Mail } from 'lucide-react-native';
 
-import { AuthLink, AuthScreenLayout, authFieldStyles } from '@/components/AuthScreen';
+import { AuthLink, AuthScreenLayout } from '@/components/AuthScreen';
+import { Banner } from '@/components/ui/Banner';
+import { PrimaryButton } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -53,56 +56,41 @@ export default function SignUpScreen() {
       loading={auth.loading || submitting}
       footer={<AuthLink prompt="Already have an account?" href="/sign-in" label="Sign in" />}
     >
-      <View style={authFieldStyles.field}>
-        <Text style={authFieldStyles.label}>Email</Text>
-        <TextInput
-          style={authFieldStyles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          autoComplete="email"
-        />
-      </View>
+      <TextField
+        label="Email"
+        icon={Mail}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoComplete="email"
+      />
 
-      <View style={authFieldStyles.field}>
-        <Text style={authFieldStyles.label}>Password</Text>
-        <TextInput
-          style={authFieldStyles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="newPassword"
-          autoComplete="new-password"
-        />
-      </View>
+      <TextField
+        label="Password"
+        icon={Lock}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="newPassword"
+        autoComplete="new-password"
+      />
 
       {formError ? (
-        <Pressable
-          accessibilityRole="button"
-          style={authFieldStyles.errorBanner}
-          onPress={() => setFormError(null)}
-        >
-          <Text style={authFieldStyles.errorText}>{formError}</Text>
-        </Pressable>
+        <Banner tone="error" body={formError} onPress={() => setFormError(null)} />
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        disabled={auth.loading || submitting}
-        style={({ pressed }) => [
-          authFieldStyles.primaryButton,
-          (auth.loading || submitting) && authFieldStyles.primaryButtonDisabled,
-          pressed && !auth.loading && !submitting && authFieldStyles.primaryButtonPressed,
-        ]}
-        onPress={handleSignUp}
-      >
-        <Text style={authFieldStyles.primaryLabel}>Create account</Text>
-      </Pressable>
+      <PrimaryButton
+        label="Create account"
+        loading={auth.loading || submitting}
+        onPress={() => {
+          void handleSignUp();
+        }}
+      />
     </AuthScreenLayout>
   );
 }

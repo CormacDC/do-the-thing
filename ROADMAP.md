@@ -171,6 +171,7 @@
 - [x] Expo push token registration (lib/pushToken + usePushToken)
 - [x] Edge Functions: schedule-accountability, cancel-accountability,
       dispatch-accountability (CRON_SECRET; decide-at-send-time)
+- [x] Hourly cron helper reads SUPABASE_URL and CRON_SECRET from Vault
 - [x] Server owns midnight expiry + Expo push to selected friends' tokens
 - [x] Client daily reset is idempotent with server dispatch
 - [x] Pure modules + Vitest coverage for copy, eligibility, friend codes

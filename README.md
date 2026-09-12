@@ -125,9 +125,16 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 Edge Function secrets (set with `supabase secrets set`, not in the app):
 
-- `CRON_SECRET` — required by `dispatch-accountability`
+- `CRON_SECRET` — required by `dispatch-accountability` (Deno env)
 - `EXPO_ACCESS_TOKEN` — optional Expo push API access token
 - Twilio vars — optional / unused while SMS is disabled
+
+Postgres Vault (`vault.secrets`, read via `vault.decrypted_secrets` by the hourly cron helper):
+
+- `SUPABASE_URL` — project URL, e.g. `https://<ref>.supabase.co`
+- `CRON_SECRET` — **same value** as the Edge Function secret
+
+If those Vault rows are missing, `invoke_dispatch_accountability()` logs a notice and does not call `pg_net`.
 
 ### Running Locally
 
@@ -151,7 +158,7 @@ supabase functions deploy cancel-accountability
 supabase functions deploy dispatch-accountability
 ```
 
-Configure `app.settings.supabase_url` / `app.settings.cron_secret` (or equivalent) so the minute cron job can call `dispatch-accountability`.
+The **hourly** cron poller (`0 * * * *`) calls `public.invoke_dispatch_accountability()`, which reads `SUPABASE_URL` and `CRON_SECRET` from Vault and POSTs to `dispatch-accountability`. The job is a poller, not “run at midnight”: each user’s `deadline_at` is their local deadline. Most ticks find zero due rows and return immediately. Missing Vault secrets skip the HTTP call (an empty URL would OOM the pg_net worker).
 
 ---
 

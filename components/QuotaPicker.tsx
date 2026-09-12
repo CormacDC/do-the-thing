@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Minus, Plus } from 'lucide-react-native';
 
-import { colors, spacing, typography } from '@/lib/theme';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { PrimaryButton, TextButton } from '@/components/ui/Button';
+import { useTheme } from '@/hooks/useTheme';
+import type { Theme } from '@/lib/theme';
 
 type QuotaPickerProps = {
   visible: boolean;
@@ -38,9 +36,10 @@ export function QuotaPicker({
   onConfirm,
   onCancel,
 }: QuotaPickerProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [quota, setQuota] = useState(Math.max(1, initialQuota));
 
-  // Sync the stepper to initialQuota each time the modal opens.
   useEffect(() => {
     if (visible) {
       setQuota(Math.max(1, initialQuota));
@@ -79,7 +78,6 @@ export function QuotaPicker({
       visible={visible}
       transparent
       animationType="fade"
-      // Non-dismissible: hardware back / swipe only backs out when cancelable.
       onRequestClose={cancelable ? handleCancel : undefined}
     >
       <View style={styles.backdrop}>
@@ -99,7 +97,7 @@ export function QuotaPicker({
               ]}
               onPress={decrement}
             >
-              <Text style={styles.stepSymbol}>−</Text>
+              <AppIcon icon={Minus} color={theme.colors.textPrimary} size="md" />
             </Pressable>
 
             <Text style={styles.quotaNumber}>{quota}</Text>
@@ -115,34 +113,22 @@ export function QuotaPicker({
               ]}
               onPress={increment}
             >
-              <Text style={styles.stepSymbol}>+</Text>
+              <AppIcon icon={Plus} color={theme.colors.textPrimary} size="md" />
             </Pressable>
           </View>
 
-          <Text style={styles.quotaUnit}>{quota === 1 ? 'task today' : 'tasks today'}</Text>
+          <Text style={styles.quotaUnit}>
+            {quota === 1 ? 'task today' : 'tasks today'}
+          </Text>
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={submitting}
-            style={({ pressed }) => [
-              styles.confirmButton,
-              submitting && styles.confirmButtonDisabled,
-              pressed && !submitting && styles.confirmButtonPressed,
-            ]}
+          <PrimaryButton
+            label={confirmLabel}
+            loading={submitting}
             onPress={handleConfirm}
-          >
-            <Text style={styles.confirmLabel}>{confirmLabel}</Text>
-          </Pressable>
+          />
 
           {cancelable ? (
-            <Pressable
-              accessibilityRole="button"
-              disabled={submitting}
-              style={styles.dismiss}
-              onPress={handleCancel}
-            >
-              <Text style={styles.dismissLabel}>Cancel</Text>
-            </Pressable>
+            <TextButton label="Cancel" disabled={submitting} onPress={handleCancel} />
           ) : null}
         </View>
       </View>
@@ -150,98 +136,65 @@ export function QuotaPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: '#00000055',
-  },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
-    alignItems: 'center',
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    alignSelf: 'flex-start',
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textMuted,
-    alignSelf: 'flex-start',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  stepButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.inputBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepButtonDisabled: {
-    opacity: 0.3,
-  },
-  stepButtonPressed: {
-    opacity: 0.7,
-  },
-  stepSymbol: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 26,
-  },
-  quotaNumber: {
-    fontSize: 56,
-    fontWeight: '700',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-    minWidth: 64,
-    textAlign: 'center',
-  },
-  quotaUnit: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: -spacing.sm,
-  },
-  confirmButton: {
-    width: '100%',
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  confirmButtonDisabled: {
-    opacity: 0.4,
-  },
-  confirmButtonPressed: {
-    opacity: 0.85,
-  },
-  confirmLabel: {
-    ...typography.label,
-    color: colors.background,
-  },
-  dismiss: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  dismissLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: theme.colors.overlay,
+    },
+    sheet: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: theme.radius.xl,
+      borderTopRightRadius: theme.radius.xl,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
+      gap: theme.spacing.md,
+      alignItems: 'center',
+    },
+    title: {
+      ...theme.typography.title,
+      color: theme.colors.textPrimary,
+      alignSelf: 'flex-start',
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      alignSelf: 'flex-start',
+    },
+    stepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xl,
+      paddingVertical: theme.spacing.md,
+    },
+    stepButton: {
+      width: 44,
+      height: 44,
+      borderRadius: theme.radius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepButtonDisabled: {
+      opacity: 0.3,
+    },
+    stepButtonPressed: {
+      opacity: 0.7,
+    },
+    quotaNumber: {
+      ...theme.typography.numeric,
+      color: theme.colors.textPrimary,
+      minWidth: 64,
+      textAlign: 'center',
+    },
+    quotaUnit: {
+      ...theme.typography.overline,
+      color: theme.colors.textSecondary,
+      marginTop: -theme.spacing.sm,
+    },
+  });
+}

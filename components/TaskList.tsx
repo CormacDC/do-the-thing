@@ -16,6 +16,7 @@ import { QuotaPicker } from '@/components/QuotaPicker';
 import { TaskRow } from '@/components/TaskRow';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
+import { useAccountabilityTargets } from '@/hooks/useAccountabilityTargets';
 import { colors, spacing, typography } from '@/lib/theme';
 import { ENABLE_DEV_RESET } from '@/lib/config';
 import { AppState } from '@/types/appState';
@@ -52,6 +53,7 @@ export function TaskList() {
     expireDeadline,
     retry,
   } = useAppState();
+  const { targetCount } = useAccountabilityTargets(auth.userId);
 
   const [draft, setDraft] = useState('');
   // A task typed while no active quota exists is held here until the user
@@ -61,6 +63,8 @@ export function TaskList() {
   const [settingQuota, setSettingQuota] = useState(false);
   const [showAdjustPicker, setShowAdjustPicker] = useState(false);
   const [adjustingQuota, setAdjustingQuota] = useState(false);
+
+  const [gateError, setGateError] = useState<string | null>(null);
 
   // Capture a snapshot of quota progress whenever the state transitions from
   // ACTIVE to EXPIRED, so the expiry copy can show accurate counts even after
@@ -87,36 +91,58 @@ export function TaskList() {
   // quota has already been met so completions are recorded but don't count.
   const tasksLocked = state === AppState.EMPTY || state === AppState.EXPIRED;
   const canSubmit = draft.trim().length > 0 && !!auth.userId && !isExpired;
-  // The quota picker is forced in EXPIRED, and shown during the new-task flow.
-  const pickerVisible = isExpired || pendingTitle !== null;
+  // Quota picker requires notify targets. When expired without targets, the
+  // gate banner points the user to Settings instead of a dead-end modal.
+  const pickerVisible =
+    pendingTitle !== null || (isExpired && targetCount >= 1);
+
+  useEffect(() => {
+    if (isExpired && targetCount < 1) {
+      setGateError(
+        'Add at least one friend as a notify target in Settings before setting a quota.',
+      );
+    } else if (targetCount >= 1) {
+      setGateError((current) =>
+        current?.includes('notify target') ? null : current,
+      );
+    }
+  }, [isExpired, targetCount]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     const value = draft.trim();
     setDraft('');
+    setGateError(null);
 
     if (state === AppState.ACTIVE || state === AppState.COMPLETE) {
-      // ACTIVE: deadline running, add directly.
-      // COMPLETE: quota already met today — add directly without a new quota
-      // prompt. The day's objective is done; the task carries forward to tomorrow.
       void addTask(value);
       return;
     }
 
-    // EMPTY or EXPIRED: no active quota exists, must pick one before saving.
+    if (targetCount < 1) {
+      setGateError(
+        'Add at least one friend as a notify target in Settings before setting a quota.',
+      );
+      return;
+    }
+
     setPendingTitle(value);
   };
 
   const handleConfirmQuota = async (quota: number) => {
+    if (targetCount < 1) {
+      setGateError(
+        'Add at least one friend as a notify target in Settings before setting a quota.',
+      );
+      return;
+    }
+
     setSettingQuota(true);
 
     if (pendingTitle !== null) {
-      // New-task flow: commit the task and its quota atomically. Both optimistic
-      // updates land in the same tick so there is no COMPLETE/EXPIRED flicker.
       await Promise.all([addTask(pendingTitle), confirmQuota(quota)]);
       setPendingTitle(null);
     } else {
-      // EXPIRED flow: set a new quota for the existing tasks.
       await confirmQuota(quota);
     }
 
@@ -154,15 +180,24 @@ export function TaskList() {
         {ENABLE_DEV_RESET ? <DevResetButton /> : null}
       </View>
 
-      {mutationError ? (
+      {gateError || mutationError ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss error"
           style={styles.banner}
-          onPress={dismissMutationError}
+          onPress={() => {
+            if (gateError) {
+              setGateError(null);
+              router.push('/settings');
+              return;
+            }
+            dismissMutationError();
+          }}
         >
-          <Text style={styles.bannerText}>{mutationError}</Text>
-          <Text style={styles.bannerDismiss}>Dismiss</Text>
+          <Text style={styles.bannerText}>{gateError ?? mutationError}</Text>
+          <Text style={styles.bannerDismiss}>
+            {gateError ? 'Open Settings' : 'Dismiss'}
+          </Text>
         </Pressable>
       ) : null}
 
@@ -308,12 +343,12 @@ function TimerArea({
     let message: string;
     if (completed === 0 && hasPriorityTasks) {
       message =
-        "You didn't complete any of your Priority tasks today. Your accountability partner has been notified.";
+        "You didn't complete any of your Priority tasks today. Your friends have been notified.";
     } else if (completed === 0) {
       message =
-        "You didn't complete any tasks today. Your accountability partner has been notified.";
+        "You didn't complete any tasks today. Your friends have been notified.";
     } else {
-      message = `You completed ${completed} of ${quota} ${quota === 1 ? 'task' : 'tasks'} today. Your accountability partner has been notified.`;
+      message = `You completed ${completed} of ${quota} ${quota === 1 ? 'task' : 'tasks'} today. Your friends have been notified.`;
     }
 
     return (
@@ -398,7 +433,7 @@ function Body({
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Nothing yet.</Text>
           <Text style={styles.emptyBody}>
-            Add a task. Commit to a quota. Your partner gets the text if you
+            Add a task. Commit to a quota. Your friends get a push if you
             don&apos;t.
           </Text>
         </View>

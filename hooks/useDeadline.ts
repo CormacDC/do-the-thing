@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  cancelAccountabilitySms,
-  scheduleAccountabilitySms,
-} from '@/lib/accountability';
+import { cancelAccountability, scheduleAccountability } from '@/lib/accountability';
 import { getNextDeadlineISO } from '@/lib/deadline';
 import { performDevDayReset } from '@/lib/devReset';
 import { supabase } from '@/lib/supabase';
-import type { Deadline, DeadlineRow, DeadlineStatus } from '@/types/deadline';
+import type {
+  AccountabilityStatus,
+  Deadline,
+  DeadlineRow,
+  DeadlineStatus,
+} from '@/types/deadline';
 
 function fromRow(row: DeadlineRow): Deadline {
   return {
@@ -18,6 +20,8 @@ function fromRow(row: DeadlineRow): Deadline {
     lastResetAt: row.last_reset_at,
     lastQuotaAdjustedAt: row.last_quota_adjusted_at,
     status: row.status as DeadlineStatus,
+    accountabilityStatus: (row.accountability_status ?? 'idle') as AccountabilityStatus,
+    accountabilitySentAt: row.accountability_sent_at ?? null,
   };
 }
 
@@ -32,11 +36,8 @@ export type UseDeadlineResult = {
   /** ACTIVE → ACTIVE. Increments tasks_completed_today; returns the new count. */
   incrementTasksCompletedToday: () => Promise<number>;
   /**
-   * Runs the daily reset: evaluates quota vs completed, transitions to COMPLETE
-   * or EXPIRED, resets tasks_completed_today to 0, and advances deadline_at to
-   * the next midnight. The optimistic update deliberately preserves
-   * tasksCompletedToday until the DB call confirms so UI can display the
-   * pre-reset count in the EXPIRED copy before zeroing it out.
+   * Runs the daily reset. Idempotent with server-side dispatch: if the deadline
+   * was already expired/sent by cron, syncs local state without double-notifying.
    */
   runDailyReset: () => Promise<void>;
   /** ACTIVE → ACTIVE (once per day). Updates daily_quota and records the adjustment timestamp. */
@@ -105,6 +106,24 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     async (dailyQuota: number) => {
       if (!supabase || !userId || dailyQuota < 1) return;
 
+      const { count: targetCount, error: targetError } = await supabase
+        .from('accountability_targets')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (targetError) {
+        if (__DEV__) console.warn('[Do The Thing] confirmQuota targets:', targetError);
+        setMutationError("We couldn't verify your friends. Try again.");
+        return;
+      }
+
+      if (!targetCount || targetCount < 1) {
+        setMutationError(
+          'Add at least one friend as a notify target in Settings before setting a quota.',
+        );
+        return;
+      }
+
       const previous = deadlineRef.current;
       const deadlineAt = getNextDeadlineISO();
       const now = new Date().toISOString();
@@ -117,6 +136,8 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         lastResetAt: previous?.lastResetAt ?? now,
         lastQuotaAdjustedAt: null,
         status: 'active',
+        accountabilityStatus: 'pending',
+        accountabilitySentAt: null,
       });
 
       const { data, error: upsertError } = await supabase
@@ -129,6 +150,8 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
             tasks_completed_today: 0,
             last_quota_adjusted_at: null,
             status: 'active',
+            accountability_status: 'pending',
+            accountability_sent_at: null,
           },
           { onConflict: 'user_id' },
         )
@@ -143,7 +166,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       }
 
       setDeadline(fromRow(data));
-      scheduleAccountabilitySms(userId);
+      scheduleAccountability(userId);
     },
     [userId],
   );
@@ -179,22 +202,49 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     const previous = deadlineRef.current;
     if (!previous) return;
 
+    // Idempotent sync: server dispatch may have already expired/sent.
+    const { data: fresh, error: freshError } = await supabase
+      .from('deadlines')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (freshError) {
+      if (__DEV__) console.warn('[Do The Thing] runDailyReset refresh failed:', freshError);
+      setMutationError("We couldn't process the daily reset. Try again.");
+      return;
+    }
+
+    if (fresh) {
+      const remote = fromRow(fresh);
+      if (
+        remote.status === 'expired' ||
+        remote.accountabilityStatus === 'sent' ||
+        remote.accountabilityStatus === 'skipped'
+      ) {
+        setDeadline(remote);
+        return;
+      }
+      if (previous.status === 'active' && remote.status === 'complete') {
+        setDeadline(remote);
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
     const nextDeadlineAt = getNextDeadlineISO();
+    const current = fresh ? fromRow(fresh) : previous;
 
-    if (previous.status === 'active') {
-      // Standard midnight reset: evaluate quota and transition to COMPLETE or EXPIRED.
-      const metQuota = previous.tasksCompletedToday >= previous.dailyQuota;
+    if (current.status === 'active') {
+      const metQuota = current.tasksCompletedToday >= current.dailyQuota;
       const nextStatus: DeadlineStatus = metQuota ? 'complete' : 'expired';
 
-      // Optimistic: update status and advance timestamps but intentionally
-      // preserve tasksCompletedToday so the EXPIRED copy can display the
-      // pre-reset count before the DB confirmation zeroes it.
       setDeadline({
-        ...previous,
+        ...current,
         status: nextStatus,
         lastResetAt: now,
         deadlineAt: nextDeadlineAt,
+        accountabilityStatus: metQuota ? 'cancelled' : current.accountabilityStatus,
       });
 
       const { error: updateError } = await supabase
@@ -204,8 +254,10 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
           tasks_completed_today: 0,
           last_reset_at: now,
           deadline_at: nextDeadlineAt,
+          ...(metQuota ? { accountability_status: 'cancelled' } : {}),
         })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('status', 'active');
 
       if (updateError) {
         if (__DEV__) console.warn('[Do The Thing] runDailyReset failed:', updateError);
@@ -214,20 +266,24 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         return;
       }
 
-      // DB confirmed — zero out the counter in local state. By this point the
-      // UI has already displayed the correct pre-reset count in the EXPIRED copy.
-      setDeadline((current) => (current ? { ...current, tasksCompletedToday: 0 } : current));
-    } else if (previous.status === 'complete') {
-      // New day after a successful day: return to ACTIVE with the same quota so
-      // the user doesn't need to re-enter it every morning. Reset the once-per-day
-      // adjustment allowance for the fresh day.
+      setDeadline((c) => (c ? { ...c, tasksCompletedToday: 0 } : c));
+
+      if (!metQuota) {
+        // Client-side expiry path when cron has not run yet — leave pending
+        // so dispatch can still send if the app closed again before cron.
+      } else {
+        cancelAccountability(userId);
+      }
+    } else if (current.status === 'complete') {
       setDeadline({
-        ...previous,
+        ...current,
         status: 'active',
         tasksCompletedToday: 0,
         lastResetAt: now,
         lastQuotaAdjustedAt: null,
         deadlineAt: nextDeadlineAt,
+        accountabilityStatus: 'pending',
+        accountabilitySentAt: null,
       });
 
       const { error: updateError } = await supabase
@@ -238,17 +294,20 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
           last_reset_at: now,
           last_quota_adjusted_at: null,
           deadline_at: nextDeadlineAt,
+          accountability_status: 'pending',
+          accountability_sent_at: null,
         })
         .eq('user_id', userId);
 
       if (updateError) {
-        if (__DEV__) console.warn('[Do The Thing] runDailyReset (complete→active) failed:', updateError);
+        if (__DEV__)
+          console.warn('[Do The Thing] runDailyReset (complete→active) failed:', updateError);
         setDeadline(previous);
         setMutationError("We couldn't start the new day. Try again.");
         return;
       }
 
-      scheduleAccountabilitySms(userId);
+      scheduleAccountability(userId);
     }
   }, [userId]);
 
@@ -282,11 +341,15 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     const previous = deadlineRef.current;
     if (!previous || previous.status === 'complete') return;
 
-    setDeadline({ ...previous, status: 'complete' });
+    setDeadline({
+      ...previous,
+      status: 'complete',
+      accountabilityStatus: 'cancelled',
+    });
 
     const { error: updateError } = await supabase
       .from('deadlines')
-      .update({ status: 'complete' })
+      .update({ status: 'complete', accountability_status: 'cancelled' })
       .eq('user_id', userId);
 
     if (updateError) {
@@ -295,7 +358,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       return;
     }
 
-    cancelAccountabilitySms(userId);
+    cancelAccountability(userId);
   }, [userId]);
 
   const devResetDay = useCallback(async () => {
@@ -317,6 +380,8 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       deadlineAt,
       lastResetAt: now,
       lastQuotaAdjustedAt: null,
+      accountabilityStatus: 'pending',
+      accountabilitySentAt: null,
     });
 
     const result = await performDevDayReset(userId);
@@ -328,7 +393,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
     }
 
     setDeadline(fromRow(result.row));
-    scheduleAccountabilitySms(userId);
+    scheduleAccountability(userId);
   }, [userId]);
 
   const dismissMutationError = useCallback(() => setMutationError(null), []);

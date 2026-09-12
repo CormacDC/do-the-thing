@@ -12,7 +12,7 @@ import { colors, spacing, typography } from '@/lib/theme';
 type QuotaPickerProps = {
   visible: boolean;
   submitting?: boolean;
-  /** Shows the "day reset" heading and accountability-partner copy. */
+  /** Shows the "day reset" heading and friends-notified copy. */
   expired?: boolean;
   /** Shows "adjust quota" heading and one-time-adjustment copy. */
   adjusting?: boolean;
@@ -59,7 +59,7 @@ export function QuotaPicker({
   const subtitle = adjusting
     ? 'You can adjust your quota once per day. This change takes effect immediately.'
     : expired
-      ? 'Your accountability partner was notified. Set a new quota to keep going.'
+      ? 'Your friends were notified. Set a new quota to keep going.'
       : 'How many tasks will you complete today?';
 
   const confirmLabel = submitting ? 'Saving…' : adjusting ? 'Update' : 'Commit';

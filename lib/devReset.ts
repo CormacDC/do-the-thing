@@ -40,6 +40,8 @@ export async function performDevDayReset(userId: string): Promise<DevDayResetRes
       last_reset_at: now,
       last_quota_adjusted_at: null,
       twilio_message_sid: null,
+      accountability_status: 'pending',
+      accountability_sent_at: null,
     })
     .eq('user_id', userId)
     .select('*')

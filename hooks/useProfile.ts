@@ -10,9 +10,9 @@ function fromRow(row: ProfileRow): Profile {
   return {
     id: row.id,
     displayName: row.display_name,
-    partnerName: row.partner_name,
-    partnerPhone: row.partner_phone,
+    friendCode: row.friend_code,
     customSms: row.custom_sms,
+    onboardingComplete: row.onboarding_complete,
   };
 }
 
@@ -24,6 +24,7 @@ export type ProfileValue = {
   dismissMutationError: () => void;
   createProfile: (input: ProfileInsert) => Promise<boolean>;
   updateProfileSettings: (input: ProfileSettingsUpdate) => Promise<boolean>;
+  completeOnboarding: (customSms?: string | null) => Promise<boolean>;
   retry: () => void;
 };
 
@@ -86,14 +87,28 @@ export function useProfileController(userId: string | null): ProfileValue {
       setMutationError(null);
 
       try {
+        if (profile && !profile.onboardingComplete) {
+          const { data, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              display_name: input.displayName.trim(),
+              custom_sms: input.customSms?.trim() || null,
+            })
+            .eq('id', userId)
+            .select('*')
+            .single();
+          if (updateError) throw updateError;
+          setProfile(fromRow(data));
+          return true;
+        }
+
         const { data, error: insertError } = await supabase
           .from('profiles')
           .insert({
             id: userId,
             display_name: input.displayName.trim(),
-            partner_name: input.partnerName.trim(),
-            partner_phone: input.partnerPhone.trim(),
             custom_sms: input.customSms?.trim() || null,
+            onboarding_complete: false,
           })
           .select('*')
           .single();
@@ -108,7 +123,7 @@ export function useProfileController(userId: string | null): ProfileValue {
         return false;
       }
     },
-    [userId],
+    [profile, userId],
   );
 
   const updateProfileSettings = useCallback(
@@ -121,8 +136,6 @@ export function useProfileController(userId: string | null): ProfileValue {
         const { data, error: updateError } = await supabase
           .from('profiles')
           .update({
-            partner_name: input.partnerName.trim(),
-            partner_phone: input.partnerPhone.trim(),
             custom_sms: input.customSms?.trim() || null,
           })
           .eq('id', userId)
@@ -142,6 +155,38 @@ export function useProfileController(userId: string | null): ProfileValue {
     [profile, userId],
   );
 
+  const completeOnboarding = useCallback(
+    async (customSms?: string | null): Promise<boolean> => {
+      if (!supabase || !userId) return false;
+
+      setMutationError(null);
+
+      try {
+        const { data, error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            onboarding_complete: true,
+            ...(customSms !== undefined
+              ? { custom_sms: customSms?.trim() || null }
+              : {}),
+          })
+          .eq('id', userId)
+          .select('*')
+          .single();
+
+        if (updateError) throw updateError;
+
+        setProfile(fromRow(data));
+        return true;
+      } catch (err) {
+        if (__DEV__) console.warn('[Do The Thing] complete onboarding failed');
+        setMutationError("We couldn't finish onboarding. Try again.");
+        return false;
+      }
+    },
+    [userId],
+  );
+
   const dismissMutationError = useCallback(() => {
     setMutationError(null);
   }, []);
@@ -158,6 +203,7 @@ export function useProfileController(userId: string | null): ProfileValue {
     dismissMutationError,
     createProfile,
     updateProfileSettings,
+    completeOnboarding,
     retry,
   };
 }

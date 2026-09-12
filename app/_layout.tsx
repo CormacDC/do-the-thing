@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { PushTokenRegistrar } from '@/components/PushTokenRegistrar';
 import { AppStateProvider } from '@/lib/appState';
 import { AuthProvider } from '@/lib/auth';
 import { ProfileProvider } from '@/lib/profile';
@@ -11,6 +12,7 @@ export default function RootLayout() {
     <AuthProvider>
       <ProfileProvider>
         <AppStateProvider>
+          <PushTokenRegistrar />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{

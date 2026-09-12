@@ -10,7 +10,7 @@ import type { DeadlineStatus } from '@/types/deadline';
 export enum AppState {
   EMPTY = 'EMPTY', // no tasks present, no deadline set
   ACTIVE = 'ACTIVE', // quota set and counting down to midnight
-  EXPIRED = 'EXPIRED', // midnight passed without meeting quota; SMS fired
+  EXPIRED = 'EXPIRED', // midnight passed without meeting quota; push sent / skipped
   COMPLETE = 'COMPLETE', // daily quota met; eligible for a fresh start
 }
 

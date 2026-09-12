@@ -4,6 +4,13 @@ export type DeadlineRow = Tables<'deadlines'>;
 
 export type DeadlineStatus = 'active' | 'complete' | 'expired';
 
+export type AccountabilityStatus =
+  | 'idle'
+  | 'pending'
+  | 'cancelled'
+  | 'sent'
+  | 'skipped';
+
 /** Client-side, camelCased view of a deadline record. */
 export type Deadline = {
   id: string;
@@ -13,4 +20,6 @@ export type Deadline = {
   lastResetAt: string;
   lastQuotaAdjustedAt: string | null;
   status: DeadlineStatus;
+  accountabilityStatus: AccountabilityStatus;
+  accountabilitySentAt: string | null;
 };

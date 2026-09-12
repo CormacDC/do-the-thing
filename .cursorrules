@@ -1,9 +1,10 @@
 - This is an Expo React Native project targeting iOS first, Android second
 - Use TypeScript strictly throughout
 - Use Supabase for all backend interactions
-- Use expo-notifications for all push notification scheduling
+- Use expo-notifications for remote accountability push and local reminder scheduling
 - Never suggest bare React Native solutions when an Expo SDK equivalent exists
 - UI should be minimalist: no unnecessary components, muted palette, clean typography
 - All new features should include error handling and loading states
-- Follow this folder structure: /app (screens), /components, /hooks, /lib (supabase client, twilio helpers), /types
+- Follow this folder structure: /app (screens), /components, /hooks, /lib (supabase client, accountability/push helpers), /types
 - Always use LF line endings in all generated files
+- Accountability channel is push-first (ACCOUNTABILITY_CHANNEL); Twilio/SMS code is stubbed and must stay inert

@@ -6,7 +6,7 @@ A minimalist iOS accountability app built with Expo and React Native. Do The Thi
 
 ## The Idea
 
-Most productivity apps give you more ways to organize tasks than to actually do them. Do The Thing takes the opposite approach. Each morning you add your tasks, commit to a daily quota — the number you'll complete before midnight — and designate an accountability partner. If you don't hit your quota by the time the clock strikes twelve, your partner gets a text. That's it.
+Most productivity apps give you more ways to organize tasks than to actually do them. Do The Thing takes the opposite approach. Each morning you add your tasks, commit to a daily quota — the number you'll complete before midnight — and choose friends who also use the app. If you don't hit your quota by the time the clock strikes twelve, those friends get a push notification. That's it.
 
 The deadline is always midnight. There's no choosing a duration, no extensions, no grace period. You have today. Use it.
 
@@ -24,48 +24,41 @@ Tasks are never deleted at the end of the day. Anything left incomplete carries 
 
 When you add your first task, you commit to a daily quota: the number of qualifying tasks you will complete before midnight. The app counts down to midnight in real time.
 
-- Meet your quota at any point during the day and the SMS is cancelled. Your day is done.
-- Miss your quota at midnight and the SMS fires immediately — no delay, no manual trigger.
+- Meet your quota at any point during the day and the pending accountability push is cancelled. Your day is done.
+- Miss your quota at midnight and selected friends are notified via remote push — no delay, no need for anyone to open the app.
 - After a successful day, the same quota carries forward to the next morning automatically. You can adjust it once per day via a subtle option on the task list screen.
 - After a missed day, you set a fresh quota before continuing.
 
 Completing tasks beyond your quota is always allowed. They just don't count toward anything — the objective for the day is already met.
 
+You cannot set a quota until at least one accepted friend is marked as a **notify target** in Settings.
+
 ### Accountability System
 
-When you commit to a quota, an SMS is scheduled via Twilio for delivery at midnight. If you complete your quota before then, the scheduled message is cancelled. If midnight arrives and the quota isn't met, the message fires automatically.
+When you commit to a quota, the app records a *pending* accountability intent in Supabase. At deadline time a server job (`dispatch-accountability`) decides whether to send:
 
-The default message reflects how the day actually went:
+- If the quota was met → no push.
+- If not → Expo Push delivers a notification to each selected friend's devices.
 
-> *"[Name] didn't complete any of their tasks today."*
-> *"[Name] completed 2 of 3 tasks today."*
-> *"[Name] didn't complete any of their Priority tasks today."*
+Cancellation is a database write when you hit your quota. Friends do not need to open the app for schedule or cancel to work.
 
-You can replace the default with a custom message during onboarding.
+Default message copy reflects how the day went:
 
-### SMS Consent
+> *"[Name] didn't complete any of their tasks yesterday."*
+> *"[Name] completed 2 of 3 tasks yesterday."*
+> *"[Name] didn't complete any of their Priority tasks yesterday."*
 
-Do The Thing sends automated SMS notifications to a user-designated 
-accountability partner. The app requires explicit informed consent 
-from the user during onboarding before any partner information is 
-saved or any messages are sent. Partners are designated voluntarily 
-by the user and messages are only sent when a user misses their 
-daily task quota.
+You can replace the default with a custom message during onboarding or in Settings (`{name}`, `{completed}`, `{quota}` placeholders).
 
-### Push Notifications
+### Friends & Consent
 
-The app pre-schedules a sequence of local push notifications when you set your quota:
+Accountability partners are other Do The Thing users linked by **friend code**. Friendship is mutual after accept. Being friends is not the same as being notified — you choose who receives the midnight push.
 
-- Morning reminder at a user-chosen wake time (if configured)
-- 2 hours before midnight — gentle nudge
-- 1 hour before midnight — direct reminder
-- At midnight — urgent, references your accountability partner
+Friends must have the app installed and notification permission granted so their Expo push token can be stored. Explicit onboarding copy explains that selected friends will receive a push if you miss your quota.
 
-Notification copy escalates in urgency as midnight approaches. All pending notifications are cancelled the moment your quota is met. If you set a new quota (after a missed day), the sequence is rescheduled from the current moment — only future-dated notifications are added.
+### Local Reminder Notifications
 
-### Accountability Partner Setup
-
-During onboarding, you select one contact from your phone as your accountability partner. Their name and number are stored securely against your account. A clear consent notice is shown before saving — so you know exactly what you're signing them up to receive.
+(Planned — Sprint 6.) The app can also schedule a sequence of **local** reminders on *your* device when you set a quota. Those are separate from the remote punishment push sent to friends.
 
 ---
 
@@ -76,22 +69,25 @@ During onboarding, you select one contact from your phone as your accountability
 | Framework | Expo (custom dev client) |
 | Language | TypeScript |
 | Navigation | Expo Router |
-| Backend | Supabase (Postgres + Edge Functions) |
-| SMS | Twilio Programmable Messaging |
-| Notifications | expo-notifications |
-| Contacts | expo-contacts |
+| Backend | Supabase (Postgres + Edge Functions + Cron) |
+| Accountability | Expo Push Notifications (server-sent) |
+| Local reminders | expo-notifications (planned) |
 | Auth | Supabase Auth |
+
+SMS via Twilio was implemented in earlier sprints and remains in the repo as a **disabled stub** (`ACCOUNTABILITY_CHANNEL = 'push'`).
 
 ---
 
 ## Project Structure
 
 ```
-/app          # Screens and navigation (Expo Router)
-/components   # Reusable UI components
-/hooks        # Custom React hooks
-/lib          # Supabase client, Twilio helpers, utilities
-/types        # Shared TypeScript types
+/app                 # Screens and navigation (Expo Router)
+/components          # Reusable UI components
+/hooks               # Custom React hooks
+/lib                 # Supabase client, accountability/push helpers, utilities
+/types               # Shared TypeScript types
+/supabase/functions  # Edge Functions (schedule/cancel/dispatch + SMS stubs)
+/supabase/migrations # Postgres schema and RPCs
 ```
 
 ---
@@ -103,8 +99,8 @@ During onboarding, you select one contact from your phone as your accountability
 - [Node.js](https://nodejs.org/) 20.19+ (required for Expo SDK 56)
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
 - A [Supabase](https://supabase.com) account and project
-- A [Twilio](https://twilio.com) account with a phone number and messaging scheduling enabled
 - An iOS device or simulator for local development
+- A **custom Expo dev client / EAS build** for reliable iOS remote push (Expo Go is not the launch target)
 
 ### Installation
 
@@ -125,12 +121,13 @@ cp .env.example .env
 ```env
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
 ```
 
-> **Note:** Twilio credentials should only ever live in Supabase Edge Functions and never be exposed to the client. The `.env` entries above are for local Edge Function development only.
+Edge Function secrets (set with `supabase secrets set`, not in the app):
+
+- `CRON_SECRET` — required by `dispatch-accountability`
+- `EXPO_ACCESS_TOKEN` — optional Expo push API access token
+- Twilio vars — optional / unused while SMS is disabled
 
 ### Running Locally
 
@@ -138,19 +135,38 @@ TWILIO_PHONE_NUMBER=your_twilio_phone_number
 npx expo start
 ```
 
+```bash
+npm run typecheck
+npm test
+```
+
 For a custom dev client build, see the EAS setup instructions in Sprint 6 of [ROADMAP.md](./ROADMAP.md).
+
+Apply new migrations and deploy Edge Functions before testing accountability end-to-end:
+
+```bash
+supabase db push
+supabase functions deploy schedule-accountability
+supabase functions deploy cancel-accountability
+supabase functions deploy dispatch-accountability
+```
+
+Configure `app.settings.supabase_url` / `app.settings.cron_secret` (or equivalent) so the minute cron job can call `dispatch-accountability`.
 
 ---
 
 ## Database Schema
 
-The core tables in Supabase are:
+Core tables:
 
-- **users** — account info and accountability partner details
+- **profiles** — display name, friend code, optional custom message, onboarding flag
 - **tasks** — individual tasks with priority and completion status
-- **deadlines** — one record per user tracking their daily quota, today's completion count, the last reset timestamp, and the scheduled Twilio message SID
+- **deadlines** — one record per user: quota, progress, accountability_status
+- **friendships** — pending / accepted / declined friend links
+- **accountability_targets** — which friends receive the midnight push
+- **push_tokens** — Expo push tokens per device
 
-Row Level Security is enabled on all tables. Users can only read and write their own data.
+Row Level Security is enabled. Friend lookup and mutations go through SECURITY DEFINER RPCs so profiles stay private.
 
 ---
 

@@ -6,20 +6,16 @@ export type ProfileRow = Tables<'profiles'>;
 export type Profile = {
   id: string;
   displayName: string;
-  partnerName: string;
-  partnerPhone: string;
+  friendCode: string;
   customSms: string | null;
+  onboardingComplete: boolean;
 };
 
 export type ProfileInsert = {
   displayName: string;
-  partnerName: string;
-  partnerPhone: string;
   customSms?: string | null;
 };
 
 export type ProfileSettingsUpdate = {
-  partnerName: string;
-  partnerPhone: string;
   customSms: string | null;
 };

@@ -39,8 +39,31 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_targets: {
+        Row: {
+          created_at: string
+          id: string
+          partner_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partner_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partner_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deadlines: {
         Row: {
+          accountability_sent_at: string | null
+          accountability_status: string
           created_at: string
           daily_quota: number
           deadline_at: string
@@ -55,6 +78,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accountability_sent_at?: string | null
+          accountability_status?: string
           created_at?: string
           daily_quota?: number
           deadline_at: string
@@ -69,6 +94,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accountability_sent_at?: string | null
+          accountability_status?: string
           created_at?: string
           daily_quota?: number
           deadline_at?: string
@@ -84,33 +111,93 @@ export type Database = {
         }
         Relationships: []
       }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           custom_sms: string | null
           display_name: string
+          friend_code: string
           id: string
-          partner_name: string
-          partner_phone: string
+          onboarding_complete: boolean
+          partner_name: string | null
+          partner_phone: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           custom_sms?: string | null
           display_name: string
+          friend_code?: string
           id: string
-          partner_name: string
-          partner_phone: string
+          onboarding_complete?: boolean
+          partner_name?: string | null
+          partner_phone?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           custom_sms?: string | null
           display_name?: string
+          friend_code?: string
           id?: string
-          partner_name?: string
-          partner_phone?: string
+          onboarding_complete?: boolean
+          partner_name?: string | null
+          partner_phone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      push_tokens: {
+        Row: {
+          created_at: string
+          expo_push_token: string
+          id: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expo_push_token: string
+          id?: string
+          platform?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expo_push_token?: string
+          id?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -152,7 +239,57 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      are_accepted_friends: {
+        Args: { a: string; b: string }
+        Returns: boolean
+      }
+      generate_friend_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      lookup_friend_code: {
+        Args: { p_code: string }
+        Returns: { display_name: string; id: string }[]
+      }
+      lookup_friend_profiles: {
+        Args: { p_ids: string[] }
+        Returns: { display_name: string; friend_code: string; id: string }[]
+      }
+      remove_accountability_target: {
+        Args: { p_partner_id: string }
+        Returns: undefined
+      }
+      request_friendship: {
+        Args: { p_friend_code: string }
+        Returns: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+      }
+      respond_to_friendship: {
+        Args: { p_accept: boolean; p_id: string }
+        Returns: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+      }
+      set_accountability_target: {
+        Args: { p_partner_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          partner_id: string
+          user_id: string
+        }
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,12 +1,16 @@
+import { ACCOUNTABILITY_CHANNEL } from '../_shared/config.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { jsonResponse } from '../_shared/response.ts';
-import { getSupabaseAdmin, getTwilioEnv, requireMatchingUser } from '../_shared/supabase.ts';
-import { cancelTwilioMessage } from '../_shared/twilio.ts';
+import { requireMatchingUser } from '../_shared/supabase.ts';
 
 type CancelSmsRequest = {
   user_id?: string;
 };
 
+/**
+ * Twilio SMS cancellation — intentionally disabled while ACCOUNTABILITY_CHANNEL !== 'sms'.
+ * Full Twilio implementation is preserved in unused helpers under _shared/twilio.ts.
+ */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -17,6 +21,16 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (ACCOUNTABILITY_CHANNEL !== 'sms') {
+      return jsonResponse({
+        ok: true,
+        disabled: true,
+        canceled: false,
+        reason: 'sms_channel_disabled',
+        channel: ACCOUNTABILITY_CHANNEL,
+      });
+    }
+
     const body = (await req.json()) as CancelSmsRequest;
     const userId = body.user_id;
 
@@ -27,53 +41,11 @@ Deno.serve(async (req) => {
     const auth = await requireMatchingUser(req, userId);
     if (!auth.ok) return auth.response;
 
-    const admin = getSupabaseAdmin();
-
-    const { data: deadline, error: deadlineError } = await admin
-      .from('deadlines')
-      .select('twilio_message_sid')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (deadlineError) {
-      console.error('[cancel-sms] deadline fetch failed:', deadlineError);
-      return jsonResponse({ error: 'Failed to load deadline' }, 500);
-    }
-
-    const messageSid = deadline?.twilio_message_sid;
-    if (!messageSid) {
-      return jsonResponse({ ok: true, canceled: false, reason: 'no_sid' });
-    }
-
-    const twilio = getTwilioEnv();
-    let cancelResult: Awaited<ReturnType<typeof cancelTwilioMessage>>;
-
-    try {
-      cancelResult = await cancelTwilioMessage(twilio, messageSid);
-    } catch (err) {
-      console.error('[cancel-sms] Twilio cancel failed:', err);
-      return jsonResponse({ ok: true, canceled: false, reason: 'twilio_error' });
-    }
-
-    if (cancelResult === 'already_sent') {
-      console.warn(`[cancel-sms] message ${messageSid} was already sent`);
-    }
-
-    const { error: updateError } = await admin
-      .from('deadlines')
-      .update({ twilio_message_sid: null })
-      .eq('user_id', userId);
-
-    if (updateError) {
-      console.error('[cancel-sms] failed to clear message SID:', updateError);
-      return jsonResponse({ error: 'Failed to clear scheduled message' }, 500);
-    }
-
     return jsonResponse({
-      ok: true,
-      canceled: cancelResult === 'canceled',
-      reason: cancelResult,
-    });
+      ok: false,
+      disabled: true,
+      reason: 'sms_not_implemented',
+    }, 501);
   } catch (err) {
     console.error('[cancel-sms] unexpected error:', err);
     return jsonResponse(

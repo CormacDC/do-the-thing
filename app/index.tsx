@@ -39,7 +39,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (!profile) {
+  if (!profile || !profile.onboardingComplete) {
     return <Redirect href="/onboarding" />;
   }
 

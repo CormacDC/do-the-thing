@@ -9,3 +9,12 @@ export const DEADLINE_MINUTE = 0;
 // Dev-only: show "Reset day" button to restart the quota timer for expiry testing.
 // Set to false to hide without deleting dev reset files.
 export const ENABLE_DEV_RESET = __DEV__;
+
+/**
+ * Live accountability delivery channel.
+ * `'push'` — Expo remote push to in-app friends (current).
+ * `'sms'` — Twilio path; kept as a stub and must not be enabled without reviving Edge Functions.
+ */
+export type AccountabilityChannel = 'push' | 'sms';
+
+export const ACCOUNTABILITY_CHANNEL: AccountabilityChannel = 'push';

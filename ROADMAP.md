@@ -37,7 +37,8 @@
 - [x] App state model implemented as a TypeScript enum with four values:
         EMPTY    — no tasks present, no active quota
         ACTIVE   — quota set and counting down to midnight
-        EXPIRED  — midnight passed without meeting quota; SMS fired, awaiting new quota
+        EXPIRED  — midnight passed without meeting quota; accountability
+                   push dispatched (or skipped), awaiting new quota
         COMPLETE — daily quota met; tasks can still be completed but don't count
 - [x] A quota is mandatory before tasks can be added for the first time or after
       EXPIRED; tasks can be added and completed freely in ACTIVE and COMPLETE states
@@ -50,7 +51,7 @@
                              tasks_completed_today incremented
         ACTIVE   → COMPLETE  tasks_completed_today reaches daily_quota
         ACTIVE   → EXPIRED   midnight reached without meeting quota:
-                             SMS fires, status set to expired
+                             accountability push fires, status set to expired
         EXPIRED  → ACTIVE    user sets a new quota; deadline_at reset to
                              tonight's midnight, tasks_completed_today reset to 0
         COMPLETE → ACTIVE    daily reset fires the next morning: same quota
@@ -79,8 +80,8 @@
       cannot be changed again until the next day.
 - [x] Priority task rule enforced: if one or more Priority tasks exist,
       only completing a Priority task counts toward the daily quota
-- [x] Partial completion acknowledged in UI and SMS copy when the day
-      ends with some but not all quota tasks completed — e.g.
+- [x] Partial completion acknowledged in UI and accountability copy when
+      the day ends with some but not all quota tasks completed — e.g.
       "You completed 2 of 3 tasks today."
 - [x] tasks_completed_today resets to 0 at the daily reset
 
@@ -89,9 +90,9 @@
 - [x] At daily reset, tasks_completed_today resets to 0 in Supabase
 - [x] Incomplete tasks carry forward automatically to the next day's list
 - [x] If quota was met before reset, state transitions to COMPLETE and
-      no SMS fires
+      no accountability push fires
 - [x] If quota was not met at reset, state transitions to EXPIRED and
-      SMS fires
+      accountability push fires (server-owned)
 
 ### Countdown Timer
 - [x] Countdown timer displayed on task list screen in dd:hh:mm:ss format
@@ -101,20 +102,22 @@
       user-chosen timestamp
 
 ## ✅ Sprint 3 — Accountability Partner Setup & Onboarding
+> **Note (Sprint 5.5):** SMS / phone-number partner setup below is **complete but disabled**.
+> Live accountability now uses in-app friends + remote push (see Sprint 5.5).
 
 - [x] Onboarding flow scaffolded and shown only on first app launch
 - [x] User display name input during onboarding, stored in Supabase
       against user account
 - [x] Accountability partner name and phone number entered manually
-      during onboarding (typed in — expo-contacts integration deferred
-      to Sprint 6)
-- [x] Partner details stored in Supabase against user account
+      during onboarding (typed in — **removed from live path**; SMS stubbed)
+- [x] Partner details stored in Supabase against user account (legacy columns
+      nullable; unused while ACCOUNTABILITY_CHANNEL is push)
 - [x] Informed consent copy shown before partner details are saved —
-      the user must explicitly acknowledge that their partner will
-      receive an automated SMS if they miss their daily quota
+      (legacy SMS consent; replaced by friend-push consent in Sprint 5.5)
 - [x] Custom SMS message input during onboarding — shown after consent,
       stored in Supabase. If left blank, the default copy is used.
-- [x] Default SMS copy implemented in Supabase, referencing partial
+      (Column retained as custom accountability push body.)
+- [x] Default accountability copy implemented, referencing partial
       completion where applicable:
         Full miss:     "[Name] didn't complete any of their tasks yesterday."
         Partial miss:  "[Name] completed [X] of [Y] tasks yesterday."
@@ -122,39 +125,21 @@
                         tasks yesterday."
 - [x] Custom message used in place of default when set, with the same
       partial completion variables available as placeholders
-- [x] Onboarding cannot be skipped — the app is not usable until
-      display name, partner details, and consent are completed
-- [x] Partner details editable post-onboarding via a settings screen
+- [x] Onboarding cannot be skipped — display name required; friend code
+      shown; custom message optional (Sprint 5.5)
+- [x] Partner / friend details editable post-onboarding via a settings screen
 
-## ✅ Sprint 4 — Accountability Backend
+## ✅ Sprint 4 — Accountability Backend (SMS)
+> **Note (Sprint 5.5):** Twilio Edge Functions remain in the repo but are
+> **safely inoperable** (`ACCOUNTABILITY_CHANNEL = 'push'`). They return
+> `{ disabled: true }` before any Twilio call.
 
-- [x] Twilio account configured with a phone number
-- [x] Supabase Edge Function: schedule-sms
-        Called when the user sets their daily quota (ACTIVE state entered)
-        Fetches user display name, partner phone number, daily_quota,
-        and Priority task status from Supabase
-        Determines correct SMS copy template based on completion state
-        at the time of scheduling — note this will be re-evaluated at
-        send time since completion state isn't known yet, so schedule
-        with the full-miss copy as default; actual copy is determined
-        by cancel-sms not being called before send time
-        Schedules SMS via Twilio's message scheduling API for midnight
-        (DEADLINE_HOUR:DEADLINE_MINUTE from config)
-        Stores returned Twilio message SID in deadline record in Supabase
-- [x] Supabase Edge Function: cancel-sms
-        Called when daily quota is met before deadline expires
-        (app is open by definition when quota is reached)
-        Fetches twilio_message_sid from deadline record in Supabase
-        Cancels the scheduled Twilio message via Twilio API using the SID
-        Clears twilio_message_sid to null in Supabase on success
-        Returns gracefully if no SID exists or message already sent
-- [x] Twilio message SID stored against deadline record in Supabase
-- [x] schedule-sms called from client when state transitions to ACTIVE
-      (first task added, after EXPIRED, or after COMPLETE → ACTIVE)
-- [x] cancel-sms called from client when state transitions to COMPLETE
-      (daily quota met — app is open by definition at this moment)
-- [x] Both Edge Functions fail silently on the client — a Twilio
-      error must never crash the app or block a state transition
+- [x] Twilio account configured with a phone number (legacy)
+- [x] Supabase Edge Function: schedule-sms — stubbed / disabled
+- [x] Supabase Edge Function: cancel-sms — stubbed / disabled
+- [x] Twilio message SID column retained on deadlines (unused)
+- [x] Client SMS helpers are no-ops; live path uses schedule/cancel-accountability
+- [x] Edge Function failures must never crash the app or block a state transition
 
 ## ✅ Sprint 5 — Auth & User Accounts
 
@@ -167,42 +152,55 @@
       existing data under the same auth.uid())
 - [x] RLS policies written/updated for all tables (tasks, deadlines,
       profiles) — authenticated role, gated on auth.uid()
-- [x] Onboarding only shown to new users (no profiles row for auth.uid())
-- [x] Partner phone masked in settings UI; PII excluded from logs and
-      client-facing errors
+- [x] Onboarding only shown to new users (no profiles row / incomplete onboarding)
+- [x] PII excluded from logs and client-facing errors
 - [x] Sign out on settings screen
 
-### Deferred to pre-launch (Sprint 6)
-- [ ] Google and Apple OAuth (requires provider dashboard setup;
-      linkIdentity helpers ready in lib/authActions.ts)
+## ✅ Sprint 5.5 — Friend Accounts & Remote Push Accountability
+
+- [x] ACCOUNTABILITY_CHANNEL flag (`push` | `sms`); SMS path stubbed
+- [x] Schema: friend_code on profiles, friendships, accountability_targets,
+      push_tokens, deadlines.accountability_status / accountability_sent_at
+- [x] SECURITY DEFINER RPCs: lookup_friend_code, lookup_friend_profiles,
+      request_friendship, respond_to_friendship, set/remove_accountability_target
+- [x] Onboarding: display name → friend code + optional invite → custom message
+- [x] Settings: friend code, add/accept friends, notify-target toggles,
+      custom message, push permission status
+- [x] Quota cannot be confirmed without ≥1 notify-target friend
+- [x] Last notify target cannot be removed while a pending active day is scheduled
+- [x] Expo push token registration (lib/pushToken + usePushToken)
+- [x] Edge Functions: schedule-accountability, cancel-accountability,
+      dispatch-accountability (CRON_SECRET; decide-at-send-time)
+- [x] Server owns midnight expiry + Expo push to selected friends' tokens
+- [x] Client daily reset is idempotent with server dispatch
+- [x] Pure modules + Vitest coverage for copy, eligibility, friend codes
+- [x] Docs updated (README, ROADMAP, .env.example, .cursorrules)
 
 ## 📋 Sprint 6 — Polish & Launch Prep
 
+- [ ] Google and Apple OAuth (requires provider dashboard setup;
+      linkIdentity helpers ready in lib/authActions.ts)
 - [ ] UI polish pass across all screens
 - [ ] Error states and loading states throughout
-- [ ] Edge case handling (no tasks, no deadline set, partner not set)
-- [ ] EAS Build configured for custom dev client
+- [ ] Edge case handling (no tasks, no deadline set, no notify-target friend)
+- [ ] EAS Build configured for custom dev client (required for reliable iOS push)
 - [ ] TestFlight internal testing
 - [ ] App Store listing prep
+- [ ] ~~expo-contacts / phone partner picker~~ — **removed** (friends are in-app only)
 
-### Contacts
-- [ ] expo-contacts integration added to accountability partner setup —
-      replace manual phone number entry with contact picker. Partner
-      name and number are pre-filled from the selected contact and
-      remain editable before saving.
-
-### Notifications
+### Local reminder notifications (user's own device — not the punishment channel)
 - [ ] expo-notifications permissions requested on first task creation
-- [ ] Notification sequence pre-scheduled at quota-setting time:
+      (push registration for accountability already runs on login)
+- [ ] Local reminder sequence pre-scheduled at quota-setting time:
         9am - motivational morning message
         1pm - gentle reminder
         5pm - slightly more urgent reminder
-        9pm - urgent and final reminder, references accountability partner being notified upon expiry
+        9pm - urgent and final reminder, references friends being notified upon expiry
 - [ ] Only future-dated notifications are scheduled relative to
       the moment the quota is set
 - [ ] Notification copy escalates in urgency closer to expiry
-- [ ] All pending notifications cancelled when daily quota is met
-- [ ] Notification sequence rescheduled when a new quota is set after
+- [ ] All pending local reminders cancelled when daily quota is met
+- [ ] Reminder sequence rescheduled when a new quota is set after
       EXPIRED → ACTIVE (user-initiated); the COMPLETE → ACTIVE daily reset
       reuses the existing quota and reschedules automatically
 
@@ -212,3 +210,4 @@
 - [ ] Daily recurring tasks (exercise, make bed, etc.) that
       automatically appear in the task list each day and count
       toward the daily quota
+- [ ] Optional Twilio SMS revival behind ACCOUNTABILITY_CHANNEL = 'sms'

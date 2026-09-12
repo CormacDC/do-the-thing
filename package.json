@@ -9,14 +9,18 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.106.1",
     "expo": "~56.0.4",
-    "expo-constants": "~56.0.15",
+    "expo-constants": "~56.0.25",
+    "expo-device": "~56.0.4",
     "expo-linking": "~56.0.11",
+    "expo-notifications": "~56.0.25",
     "expo-router": "~56.2.6",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
@@ -30,7 +34,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=20.19.0"

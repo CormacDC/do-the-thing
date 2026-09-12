@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.cancel-sms]
 verify_jwt = true
+
+[functions.schedule-accountability]
+verify_jwt = true
+
+[functions.cancel-accountability]
+verify_jwt = true
+
+[functions.dispatch-accountability]
+verify_jwt = false

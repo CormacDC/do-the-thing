@@ -50,7 +50,7 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (profile) {
+  if (profile?.onboardingComplete) {
     return <Redirect href="/" />;
   }
 

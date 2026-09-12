@@ -11,72 +11,84 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useFriends } from '@/hooks/useFriends';
 import { useProfile } from '@/hooks/useProfile';
-import { formatPhoneHint, isValidE164Phone } from '@/lib/phone';
-import { SMS_COPY, SMS_DEFAULT_PREVIEW, SMS_TOKEN_HINT } from '@/lib/smsCopy';
-import { replaceSmsTokens } from '@/lib/smsMessage';
+import {
+  ACCOUNTABILITY_COPY,
+  ACCOUNTABILITY_DEFAULT_PREVIEW,
+  ACCOUNTABILITY_TOKEN_HINT,
+} from '@/lib/accountabilityCopy';
+import { replaceAccountabilityTokens } from '@/lib/accountabilityMessage';
 import { colors, spacing, typography } from '@/lib/theme';
-import type { ProfileInsert } from '@/types/profile';
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 
 export function OnboardingFlow() {
-  const { createProfile, mutationError, dismissMutationError } = useProfile();
+  const { userId } = useAuth();
+  const { createProfile, completeOnboarding, profile, mutationError, dismissMutationError } =
+    useProfile();
+  const { requestFriend } = useFriends(userId);
 
-  const [step, setStep] = useState<Step>(1);
-  const [displayName, setDisplayName] = useState('');
-  const [partnerName, setPartnerName] = useState('');
-  const [partnerPhone, setPartnerPhone] = useState('');
-  const [customSms, setCustomSms] = useState('');
+  const [step, setStep] = useState<Step>(profile && !profile.onboardingComplete ? 2 : 1);
+  const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
+  const [friendCodeInput, setFriendCodeInput] = useState('');
+  const [friendRequestNote, setFriendRequestNote] = useState<string | null>(null);
+  const [customMessage, setCustomMessage] = useState(profile?.customSms ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const previewName = displayName.trim() || 'Alex';
+  const previewName = displayName.trim() || profile?.displayName || 'Alex';
+  const myCode = profile?.friendCode ?? '······';
 
   const clearErrors = () => {
     setValidationError(null);
+    setFriendRequestNote(null);
     dismissMutationError();
   };
 
-  const handleContinueStep1 = () => {
+  const handleContinueStep1 = async () => {
     clearErrors();
     if (!displayName.trim()) {
       setValidationError('Enter your display name to continue.');
       return;
     }
-    setStep(2);
+
+    setSubmitting(true);
+    const ok = await createProfile({ displayName: displayName.trim() });
+    setSubmitting(false);
+
+    if (ok) {
+      setStep(2);
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    clearErrors();
+    if (!friendCodeInput.trim()) {
+      setValidationError('Enter a friend code, or skip this step.');
+      return;
+    }
+
+    setSubmitting(true);
+    const ok = await requestFriend(friendCodeInput);
+    setSubmitting(false);
+
+    if (ok) {
+      setFriendRequestNote('Friend request sent. They’ll need to accept it.');
+      setFriendCodeInput('');
+    }
   };
 
   const handleContinueStep2 = () => {
     clearErrors();
-    if (!partnerName.trim()) {
-      setValidationError("Enter your partner's name to continue.");
-      return;
-    }
-    if (!isValidE164Phone(partnerPhone)) {
-      setValidationError(`Enter a valid phone number. ${formatPhoneHint()}`);
-      return;
-    }
     setStep(3);
   };
 
-  const handleContinueStep3 = () => {
-    clearErrors();
-    setStep(4);
-  };
-
-  const finishOnboarding = async (useCustomSms: boolean) => {
+  const finishOnboarding = async (useCustom: boolean) => {
     clearErrors();
     setSubmitting(true);
-
-    const payload: ProfileInsert = {
-      displayName: displayName.trim(),
-      partnerName: partnerName.trim(),
-      partnerPhone: partnerPhone.trim(),
-      customSms: useCustomSms ? customSms.trim() || null : null,
-    };
-
-    await createProfile(payload);
+    await completeOnboarding(useCustom ? customMessage.trim() || null : null);
     setSubmitting(false);
   };
 
@@ -101,16 +113,16 @@ export function OnboardingFlow() {
         bounces={false}
       >
         <View style={styles.progress}>
-          <Text style={styles.progressLabel}>Step {step} of 4</Text>
+          <Text style={styles.progressLabel}>Step {step} of 3</Text>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(step / 4) * 100}%` }]} />
+            <View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} />
           </View>
         </View>
 
         {step === 1 ? (
           <StepShell
             title="What should we call you?"
-            subtitle="Your accountability partner will see this name in texts."
+            subtitle="Friends will see this name in accountability notifications."
           >
             <TextInput
               style={styles.input}
@@ -121,77 +133,78 @@ export function OnboardingFlow() {
               autoCapitalize="words"
               autoCorrect={false}
               returnKeyType="next"
-              onSubmitEditing={handleContinueStep1}
+              onSubmitEditing={() => {
+                void handleContinueStep1();
+              }}
             />
-            <PrimaryButton label="Continue" onPress={handleContinueStep1} />
+            <PrimaryButton
+              label={submitting ? 'Saving…' : 'Continue'}
+              disabled={submitting}
+              onPress={() => {
+                void handleContinueStep1();
+              }}
+            />
           </StepShell>
         ) : null}
 
         {step === 2 ? (
           <StepShell
-            title="Who keeps you honest?"
-            subtitle="Enter your accountability partner's name and phone number."
+            title="Add friends"
+            subtitle="Share your code so friends with Do The Thing can add you. You can also enter theirs now — optional."
           >
+            <View style={styles.codeBox}>
+              <Text style={styles.codeLabel}>Your friend code</Text>
+              <Text style={styles.codeValue}>{myCode}</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Partner name"
+              placeholder="Friend's code (optional)"
               placeholderTextColor={colors.textMuted}
-              value={partnerName}
-              onChangeText={setPartnerName}
-              autoCapitalize="words"
+              value={friendCodeInput}
+              onChangeText={setFriendCodeInput}
+              autoCapitalize="characters"
               autoCorrect={false}
+              maxLength={6}
             />
-            <TextInput
-              style={styles.input}
-              placeholder={formatPhoneHint()}
-              placeholderTextColor={colors.textMuted}
-              value={partnerPhone}
-              onChangeText={setPartnerPhone}
-              keyboardType="phone-pad"
-              autoCorrect={false}
-              textContentType="telephoneNumber"
+            <SecondaryButton
+              label={submitting ? 'Sending…' : 'Send friend request'}
+              disabled={submitting}
+              onPress={() => {
+                void handleSendFriendRequest();
+              }}
             />
+            {friendRequestNote ? (
+              <Text style={styles.noteText}>{friendRequestNote}</Text>
+            ) : null}
+            <View style={styles.consentBox}>
+              <Text style={styles.consentText}>
+                Selected friends will get a push notification if you miss your daily quota.
+                You choose who is notified in Settings. At least one notify target is required
+                before you can set a quota.
+              </Text>
+            </View>
             <PrimaryButton label="Continue" onPress={handleContinueStep2} />
           </StepShell>
         ) : null}
 
         {step === 3 ? (
           <StepShell
-            title="Before we save this"
-            subtitle="Please read and acknowledge the following."
-          >
-            <View style={styles.consentBox}>
-              <Text style={styles.consentText}>
-                If you miss your daily quota, {partnerName.trim() || 'your partner'} will
-                automatically receive an SMS letting them know. You can update partner
-                details later in Settings.
-              </Text>
-            </View>
-            <PrimaryButton
-              label="I understand — continue"
-              onPress={handleContinueStep3}
-            />
-          </StepShell>
-        ) : null}
-
-        {step === 4 ? (
-          <StepShell
-            title="Customize the text?"
-            subtitle="Optional. Leave blank to use the default message."
+            title="Customize the message?"
+            subtitle="Optional. Leave blank to use the default push notification copy."
           >
             <View style={styles.defaultCopyBox}>
               <Text style={styles.defaultCopyLabel}>Default message</Text>
               <Text style={styles.defaultCopyText}>
-                {replaceSmsTokens(SMS_DEFAULT_PREVIEW, {
+                {replaceAccountabilityTokens(ACCOUNTABILITY_DEFAULT_PREVIEW, {
                   name: previewName,
                   completed: 0,
                   quota: 3,
                 })}
               </Text>
-              <Text style={styles.defaultCopyHint}>{SMS_TOKEN_HINT}</Text>
+              <Text style={styles.defaultCopyHint}>{ACCOUNTABILITY_TOKEN_HINT}</Text>
               <Text style={styles.defaultCopyExamples}>
                 Partial:{' '}
-                {replaceSmsTokens(SMS_COPY.partialMiss, {
+                {replaceAccountabilityTokens(ACCOUNTABILITY_COPY.partialMiss, {
                   name: previewName,
                   completed: 2,
                   quota: 3,
@@ -202,8 +215,8 @@ export function OnboardingFlow() {
               style={[styles.input, styles.textArea]}
               placeholder="Custom message (optional)"
               placeholderTextColor={colors.textMuted}
-              value={customSms}
-              onChangeText={setCustomSms}
+              value={customMessage}
+              onChangeText={setCustomMessage}
               multiline
               textAlignVertical="top"
               autoCorrect={false}
@@ -211,12 +224,16 @@ export function OnboardingFlow() {
             <PrimaryButton
               label={submitting ? 'Saving…' : 'Save and continue'}
               disabled={submitting}
-              onPress={handleFinishWithCustom}
+              onPress={() => {
+                void handleFinishWithCustom();
+              }}
             />
             <SecondaryButton
               label={submitting ? 'Saving…' : 'Use default message'}
               disabled={submitting}
-              onPress={handleSkipCustom}
+              onPress={() => {
+                void handleSkipCustom();
+              }}
             />
           </StepShell>
         ) : null}
@@ -358,6 +375,31 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 112,
     paddingTop: spacing.sm + 2,
+  },
+  codeBox: {
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
+  codeLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  codeValue: {
+    ...typography.title,
+    color: colors.text,
+    letterSpacing: 4,
+    fontVariant: ['tabular-nums'],
+  },
+  noteText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   consentBox: {
     padding: spacing.md,

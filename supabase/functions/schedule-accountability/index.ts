@@ -1,6 +1,10 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { jsonResponse } from '../_shared/response.ts';
-import { getSupabaseAdmin, requireMatchingUser } from '../_shared/supabase.ts';
+import {
+  describeUnknownError,
+  getSupabaseAdmin,
+  requireMatchingUser,
+} from '../_shared/supabase.ts';
 
 type ScheduleRequest = {
   user_id?: string;
@@ -32,17 +36,23 @@ Deno.serve(async (req) => {
 
     const admin = getSupabaseAdmin();
 
-    const { count: targetCount, error: targetError } = await admin
+    // GET + limit(1), not HEAD count: head:true returns an empty body, so
+    // PostgREST/Kong errors surface as `{ message: "" }` from Edge Functions.
+    const { data: targets, error: targetError } = await admin
       .from('accountability_targets')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
 
     if (targetError) {
-      console.error('[schedule-accountability] target count failed:', targetError);
+      console.error(
+        '[schedule-accountability] target count failed:',
+        describeUnknownError(targetError),
+      );
       return jsonResponse({ error: 'Failed to load targets' }, 500);
     }
 
-    if (!targetCount || targetCount < 1) {
+    if (!targets || targets.length < 1) {
       const { error: skipError } = await admin
         .from('deadlines')
         .update({
@@ -52,7 +62,10 @@ Deno.serve(async (req) => {
         .eq('user_id', userId);
 
       if (skipError) {
-        console.error('[schedule-accountability] skip update failed:', skipError);
+        console.error(
+          '[schedule-accountability] skip update failed:',
+          describeUnknownError(skipError),
+        );
         return jsonResponse({ error: 'Failed to update deadline' }, 500);
       }
 
@@ -68,7 +81,10 @@ Deno.serve(async (req) => {
       .eq('user_id', userId);
 
     if (updateError) {
-      console.error('[schedule-accountability] pending update failed:', updateError);
+      console.error(
+        '[schedule-accountability] pending update failed:',
+        describeUnknownError(updateError),
+      );
       return jsonResponse({ error: 'Failed to schedule accountability' }, 500);
     }
 

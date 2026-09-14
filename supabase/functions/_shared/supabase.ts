@@ -2,6 +2,22 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 
 import { jsonResponse } from './response.ts';
 
+/** Fields worth logging from a PostgREST/auth error. Never pass this secrets. */
+export function describeUnknownError(error: unknown): Record<string, unknown> {
+  if (!error || typeof error !== 'object') {
+    return { message: String(error) };
+  }
+
+  const err = error as Record<string, unknown>;
+  return {
+    message: err.message ?? null,
+    code: err.code ?? null,
+    details: err.details ?? null,
+    hint: err.hint ?? null,
+    status: err.status ?? null,
+  };
+}
+
 export function getSupabaseAdmin(): SupabaseClient {
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');

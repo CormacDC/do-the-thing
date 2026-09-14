@@ -103,12 +103,13 @@ Deno.serve(async (req) => {
         tokens = (tokenRows ?? []).map((t) => t.expo_push_token as string);
       }
 
-      const { count: priorityCount, error: priorityError } = await admin
+      const { data: priorityRows, error: priorityError } = await admin
         .from('tasks')
-        .select('id', { count: 'exact', head: true })
+        .select('id')
         .eq('user_id', userId)
         .eq('is_priority', true)
-        .eq('is_complete', false);
+        .eq('is_complete', false)
+        .limit(1);
 
       if (priorityError) {
         console.error('[dispatch-accountability] priority count failed:', priorityError);
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
         accountabilityStatus: 'pending',
         tasksCompletedToday: row.tasks_completed_today as number,
         dailyQuota: row.daily_quota as number,
-        hasPriorityTasks: (priorityCount ?? 0) > 0,
+        hasPriorityTasks: (priorityRows?.length ?? 0) > 0,
         targetCount: partnerIds.length,
         tokenCount: tokens.length,
       });

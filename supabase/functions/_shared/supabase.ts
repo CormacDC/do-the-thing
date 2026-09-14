@@ -10,7 +10,13 @@ export function getSupabaseAdmin(): SupabaseClient {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  return createClient(url, serviceRoleKey);
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 export function getSupabaseUserClient(authHeader: string): SupabaseClient {
@@ -22,6 +28,11 @@ export function getSupabaseUserClient(authHeader: string): SupabaseClient {
   }
 
   return createClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
     global: { headers: { Authorization: authHeader } },
   });
 }

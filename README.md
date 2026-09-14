@@ -158,7 +158,7 @@ supabase functions deploy cancel-accountability
 supabase functions deploy dispatch-accountability
 ```
 
-The **hourly** cron poller (`0 * * * *`) calls `public.invoke_dispatch_accountability()`, which reads `SUPABASE_URL` and `CRON_SECRET` from Vault and POSTs to `dispatch-accountability`. The job is a poller, not “run at midnight”: each user’s `deadline_at` is their local deadline. Most ticks find zero due rows and return immediately. Missing Vault secrets skip the HTTP call (an empty URL would OOM the pg_net worker).
+The **hourly** cron poller (`0 * * * *`) calls `public.invoke_dispatch_accountability()`, which reads `SUPABASE_URL` and `CRON_SECRET` from Vault and POSTs to `dispatch-accountability` only when a due (or stale-lease) row exists. The job is a poller, not “run at midnight”: each user’s `deadline_at` is their local deadline. Most ticks find zero due rows and return without an HTTP call. The function claims work via `claim_due_deadlines` (`FOR UPDATE SKIP LOCKED`). Missing Vault secrets skip the HTTP call (an empty URL would OOM the pg_net worker).
 
 ---
 

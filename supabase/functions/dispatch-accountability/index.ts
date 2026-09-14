@@ -7,6 +7,18 @@ import { collectInvalidPushTokens, sendExpoPush } from '../_shared/expoPush.ts';
 import { jsonResponse } from '../_shared/response.ts';
 import { getSupabaseAdmin } from '../_shared/supabase.ts';
 
+const CLAIM_TIMEOUT_MS = 8_000;
+
+type ClaimedDeadline = {
+  id: string;
+  user_id: string;
+  daily_quota: number;
+  tasks_completed_today: number;
+  status: string;
+  accountability_status: string;
+  deadline_at: string;
+};
+
 /**
  * Cron-only dispatcher: claim due pending deadlines, push to targets, expire.
  * Auth: Authorization Bearer must match CRON_SECRET (verify_jwt = false).
@@ -38,30 +50,22 @@ Deno.serve(async (req) => {
 
     const admin = getSupabaseAdmin();
     const nowIso = new Date().toISOString();
+    const executionId = crypto.randomUUID();
+    const startedAt = Date.now();
 
-    // Atomically claim due pending rows by flipping status to a transient claim
-    // via update...returning. We use 'skipped' only after evaluation; claim by
-    // setting accountability_sent_at sentinel? Better: select then update with
-    // pending filter. Overlap protection: update where pending AND deadline due
-    // AND accountability_sent_at is null, setting a claim timestamp first.
+    console.info(
+      `[dispatch-accountability] claim_started execution_id=${executionId} elapsed_ms=0`,
+    );
 
-    const { data: claimed, error: claimError } = await admin
-      .from('deadlines')
-      .update({ accountability_sent_at: nowIso })
-      .eq('status', 'active')
-      .eq('accountability_status', 'pending')
-      .lte('deadline_at', nowIso)
-      .is('accountability_sent_at', null)
-      .select(
-        'id, user_id, daily_quota, tasks_completed_today, status, accountability_status, deadline_at',
+    const claim = await claimDueDeadlines(admin, nowIso, executionId, startedAt);
+    if (!claim.ok) {
+      return jsonResponse(
+        { error: 'Failed to claim deadlines' },
+        claim.timeout ? 504 : 500,
       );
-
-    if (claimError) {
-      console.error('[dispatch-accountability] claim failed:', claimError);
-      return jsonResponse({ error: 'Failed to claim deadlines' }, 500);
     }
 
-    const rows = claimed ?? [];
+    const rows = claim.rows;
     let sent = 0;
     let skipped = 0;
     let cancelled = 0;
@@ -99,12 +103,19 @@ Deno.serve(async (req) => {
         tokens = (tokenRows ?? []).map((t) => t.expo_push_token as string);
       }
 
-      const { count: priorityCount } = await admin
+      const { count: priorityCount, error: priorityError } = await admin
         .from('tasks')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_priority', true)
         .eq('is_complete', false);
+
+      if (priorityError) {
+        console.error('[dispatch-accountability] priority count failed:', priorityError);
+        await markSkipped(admin, userId, 'priority_error', row.deadline_at as string);
+        skipped += 1;
+        continue;
+      }
 
       const decision = evaluateAccountabilityEligibility({
         deadlineStatus: row.status as string,
@@ -200,10 +211,71 @@ Deno.serve(async (req) => {
     console.error('[dispatch-accountability] unexpected error:', err);
     return jsonResponse(
       { error: err instanceof Error ? err.message : 'Internal server error' },
-      500,
+      isTimeoutError(err) ? 504 : 500,
     );
   }
 });
+
+async function claimDueDeadlines(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  nowIso: string,
+  executionId: string,
+  startedAt: number,
+): Promise<
+  { ok: true; rows: ClaimedDeadline[] } | { ok: false; timeout: boolean }
+> {
+  const elapsed = () => Date.now() - startedAt;
+
+  console.info(
+    `[dispatch-accountability] claim_database_started execution_id=${executionId} elapsed_ms=${elapsed()}`,
+  );
+
+  try {
+    const { data, error } = await admin
+      .rpc('claim_due_deadlines', { p_now: nowIso })
+      .abortSignal(AbortSignal.timeout(CLAIM_TIMEOUT_MS));
+
+    if (error) {
+      console.error(
+        `[dispatch-accountability] claim_failed execution_id=${executionId} phase=database elapsed_ms=${elapsed()}`,
+        { message: error.message, code: error.code },
+      );
+      return { ok: false, timeout: isTimeoutError(error) };
+    }
+
+    const rows = (data ?? []) as ClaimedDeadline[];
+    console.info(
+      `[dispatch-accountability] claim_database_completed execution_id=${executionId} elapsed_ms=${elapsed()} claimed=${rows.length}`,
+    );
+    return { ok: true, rows };
+  } catch (err) {
+    console.error(
+      `[dispatch-accountability] claim_failed execution_id=${executionId} phase=database elapsed_ms=${elapsed()}`,
+      {
+        message: err instanceof Error ? err.message : String(err),
+      },
+    );
+    return { ok: false, timeout: isTimeoutError(err) };
+  }
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const err = error as { message?: string; code?: string; name?: string };
+  const message = (err.message ?? '').toLowerCase();
+  return (
+    err.code === 'PGRST003' ||
+    err.name === 'AbortError' ||
+    err.name === 'TimeoutError' ||
+    message.includes('gateway timeout') ||
+    message.includes('timed out') ||
+    message.includes('timeout') ||
+    message.includes('aborted')
+  );
+}
 
 async function markSkipped(
   admin: ReturnType<typeof getSupabaseAdmin>,

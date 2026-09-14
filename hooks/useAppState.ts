@@ -17,6 +17,10 @@ export type AppStateValue = {
   mutationError: string | null;
   dismissMutationError: () => void;
   addTask: (title: string) => Promise<void>;
+  /** Edit a task title. Does not change the daily quota counter. */
+  updateTitle: (id: string, title: string) => Promise<boolean>;
+  /** Remove a task. Does not change the daily quota counter. */
+  deleteTask: (id: string) => Promise<boolean>;
   toggleComplete: (id: string) => Promise<void>;
   togglePriority: (id: string) => Promise<void>;
   /** EMPTY/EXPIRED/COMPLETE → ACTIVE. Sets quota and targets tonight's midnight. */
@@ -167,6 +171,8 @@ export function useAppStateController(userId: string | null): AppStateValue {
         deadlineApi.dismissMutationError();
       },
       addTask: tasksApi.addTask,
+      updateTitle: tasksApi.updateTitle,
+      deleteTask: tasksApi.deleteTask,
       toggleComplete,
       togglePriority: tasksApi.togglePriority,
       confirmQuota: deadlineApi.confirmQuota,

@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
+  Platform,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   CircleCheck,
   ListTodo,
@@ -34,6 +37,7 @@ import { TextField } from '@/components/ui/TextField';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountabilityTargets } from '@/hooks/useAccountabilityTargets';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useTheme } from '@/hooks/useTheme';
 import { ENABLE_DEV_RESET } from '@/lib/config';
 import type { Theme } from '@/lib/theme';
@@ -55,6 +59,8 @@ type ExpiredSnapshot = {
 export function TaskList() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const auth = useAuth();
   const {
     state,
@@ -65,6 +71,8 @@ export function TaskList() {
     mutationError,
     dismissMutationError,
     addTask,
+    updateTitle,
+    deleteTask,
     toggleComplete,
     togglePriority,
     confirmQuota,
@@ -85,6 +93,7 @@ export function TaskList() {
 
   const [expiredSnapshot, setExpiredSnapshot] = useState<ExpiredSnapshot | null>(null);
   const prevStateRef = useRef<AppState>(state);
+  const listRef = useRef<FlatList<Task>>(null);
 
   useEffect(() => {
     if (prevStateRef.current === AppState.ACTIVE && state === AppState.EXPIRED && deadline) {
@@ -120,6 +129,7 @@ export function TaskList() {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    Keyboard.dismiss();
     const value = draft.trim();
     setDraft('');
     setGateError(null);
@@ -170,8 +180,30 @@ export function TaskList() {
     setAdjustingQuota(false);
   };
 
+  const handleEditStart = useCallback(
+    (id: string) => {
+      const index = tasks.findIndex((task) => task.id === id);
+      if (index < 0) return;
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({
+          index,
+          viewPosition: 0.25,
+          animated: true,
+        });
+      });
+    },
+    [tasks],
+  );
+
+  // iOS: sit on the keyboard frame (or the home indicator when hidden).
+  // Android: the window already resizes, so only keep the home-indicator inset.
+  const bottomInset =
+    Platform.OS === 'ios'
+      ? Math.max(insets.bottom, keyboardHeight)
+      : insets.bottom;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInset }]}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Do The Thing</Text>
@@ -222,8 +254,12 @@ export function TaskList() {
         loading={loading}
         error={error}
         tasksLocked={tasksLocked}
+        listRef={listRef}
         onToggleComplete={toggleComplete}
         onTogglePriority={togglePriority}
+        onUpdateTitle={updateTitle}
+        onDelete={deleteTask}
+        onEditStart={handleEditStart}
         onRetry={retry}
       />
 
@@ -235,7 +271,7 @@ export function TaskList() {
           onChangeText={setDraft}
           onSubmitEditing={handleSubmit}
           returnKeyType="done"
-          blurOnSubmit={false}
+          blurOnSubmit
           autoCorrect={false}
           editable={!!auth.userId && !isExpired}
         />
@@ -384,8 +420,12 @@ type BodyProps = {
   loading: boolean;
   error: string | null;
   tasksLocked: boolean;
+  listRef: RefObject<FlatList<Task> | null>;
   onToggleComplete: (id: string) => void;
   onTogglePriority: (id: string) => void;
+  onUpdateTitle: (id: string, title: string) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
+  onEditStart: (id: string) => void;
   onRetry: () => void;
 };
 
@@ -395,8 +435,12 @@ function Body({
   loading,
   error,
   tasksLocked,
+  listRef,
   onToggleComplete,
   onTogglePriority,
+  onUpdateTitle,
+  onDelete,
+  onEditStart,
   onRetry,
 }: BodyProps) {
   const theme = useTheme();
@@ -432,14 +476,29 @@ function Body({
 
   return (
     <FlatList
+      ref={listRef}
       data={tasks}
       keyExtractor={(item) => item.id}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      onScrollToIndexFailed={({ index }) => {
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({
+            index,
+            viewPosition: 0.25,
+            animated: true,
+          });
+        }, 100);
+      }}
       renderItem={({ item }) => (
         <TaskRow
           task={item}
-          disabled={tasksLocked || item.isComplete}
+          togglesLocked={tasksLocked || item.isComplete}
           onToggleComplete={onToggleComplete}
           onTogglePriority={onTogglePriority}
+          onUpdateTitle={onUpdateTitle}
+          onDelete={onDelete}
+          onEditStart={onEditStart}
         />
       )}
       style={styles.list}

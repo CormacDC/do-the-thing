@@ -19,6 +19,10 @@ function fromRow(row: TaskRow): Task {
   };
 }
 
+function isPersistedTaskId(id: string): boolean {
+  return !id.startsWith('temp-');
+}
+
 export type UseTasksResult = {
   tasks: Task[];
   loading: boolean;
@@ -26,6 +30,8 @@ export type UseTasksResult = {
   mutationError: string | null;
   dismissMutationError: () => void;
   addTask: (title: string) => Promise<void>;
+  updateTitle: (id: string, title: string) => Promise<boolean>;
+  deleteTask: (id: string) => Promise<boolean>;
   toggleComplete: (id: string) => Promise<boolean>;
   togglePriority: (id: string) => Promise<void>;
   retry: () => void;
@@ -123,6 +129,62 @@ export function useTasks(userId: string | null): UseTasksResult {
     [userId],
   );
 
+  const updateTitle = useCallback(
+    async (id: string, title: string) => {
+      const trimmed = title.trim();
+      if (!trimmed || !userId || !supabase || !isPersistedTaskId(id)) return false;
+
+      const previous = tasksRef.current;
+      const current = previous.find((t) => t.id === id);
+      if (!current || current.title === trimmed) return true;
+
+      setTasks(previous.map((t) => (t.id === id ? { ...t, title: trimmed } : t)));
+
+      const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ title: trimmed })
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (updateError) {
+        if (__DEV__) console.warn('[Do The Thing] update title failed:', updateError);
+        setTasks(previous);
+        setMutationError("We couldn't update that task. Try again.");
+        return false;
+      }
+
+      return true;
+    },
+    [userId],
+  );
+
+  const deleteTask = useCallback(
+    async (id: string) => {
+      if (!supabase || !userId || !isPersistedTaskId(id)) return false;
+
+      const previous = tasksRef.current;
+      if (!previous.some((t) => t.id === id)) return false;
+
+      setTasks(previous.filter((t) => t.id !== id));
+
+      const { error: deleteError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        if (__DEV__) console.warn('[Do The Thing] delete task failed:', deleteError);
+        setTasks(previous);
+        setMutationError("We couldn't delete that task. Try again.");
+        return false;
+      }
+
+      return true;
+    },
+    [userId],
+  );
+
   const toggleComplete = useCallback(
     async (id: string) => {
       if (!supabase || !userId) return false;
@@ -195,6 +257,8 @@ export function useTasks(userId: string | null): UseTasksResult {
     mutationError,
     dismissMutationError,
     addTask,
+    updateTitle,
+    deleteTask,
     toggleComplete,
     togglePriority,
     retry,

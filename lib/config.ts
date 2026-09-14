@@ -8,7 +8,7 @@ export const DEADLINE_MINUTE = 0;
 
 // Dev-only: show "Reset day" button to restart the quota timer for expiry testing.
 // Set to false to hide without deleting dev reset files.
-export const ENABLE_DEV_RESET = __DEV__;
+export const ENABLE_DEV_RESET = typeof __DEV__ !== 'undefined' && __DEV__;
 
 /**
  * Live accountability delivery channel.

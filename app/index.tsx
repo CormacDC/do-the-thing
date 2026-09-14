@@ -48,7 +48,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right']}>
       <TaskList />
     </Screen>
   );

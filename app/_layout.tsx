@@ -1,5 +1,7 @@
+import { StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PushTokenRegistrar } from '@/components/PushTokenRegistrar';
 import { useTheme } from '@/hooks/useTheme';
@@ -10,9 +12,11 @@ import { ThemeProvider } from '@/lib/ThemeProvider';
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootLayoutInner />
-    </ThemeProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <ThemeProvider>
+        <RootLayoutInner />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -48,3 +52,9 @@ function RootLayoutInner() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

@@ -1,4 +1,4 @@
-# OrElse — Build Roadmap
+# DailyBind — Build Roadmap
 
 ## ✅ Sprint 0 — Project Setup
 

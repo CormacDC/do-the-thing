@@ -156,7 +156,7 @@ export function OnboardingFlow() {
         {step === 2 ? (
           <StepShell
             title="Add friends"
-            subtitle="Share your code so friends with OrElse can add you. You can also enter theirs now — optional."
+            subtitle="Share your code so friends with DailyBind can add you. You can also enter theirs now — optional."
           >
             <FriendCodeCard code={myCode} hint="" />
             <TextField

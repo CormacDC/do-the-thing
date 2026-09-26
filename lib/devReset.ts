@@ -20,7 +20,7 @@ export async function performDevDayReset(userId: string): Promise<DevDayResetRes
     .maybeSingle();
 
   if (fetchError) {
-    if (__DEV__) console.warn('[OrElse] devReset fetch failed:', fetchError);
+    if (__DEV__) console.warn('[DailyBind] devReset fetch failed:', fetchError);
     return { ok: false, error: "We couldn't load your deadline. Try again." };
   }
 
@@ -48,7 +48,7 @@ export async function performDevDayReset(userId: string): Promise<DevDayResetRes
     .single();
 
   if (updateError) {
-    if (__DEV__) console.warn('[OrElse] devReset update failed:', updateError);
+    if (__DEV__) console.warn('[DailyBind] devReset update failed:', updateError);
     return { ok: false, error: "We couldn't reset the day. Try again." };
   }
 

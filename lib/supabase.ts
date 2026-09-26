@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   if (__DEV__) {
     console.warn(
-      '[OrElse] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
+      '[DailyBind] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
         'Copy .env.example to .env and add your Supabase credentials.',
     );
   }

@@ -72,7 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (err) {
         if (cancelled) return;
         if (__DEV__) {
-          console.warn('[OrElse] auth bootstrap failed');
+          console.warn('[DailyBind] auth bootstrap failed');
         }
         setError(friendlyAuthError(err instanceof Error ? err : null));
       } finally {

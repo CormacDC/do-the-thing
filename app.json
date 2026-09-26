@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "OrElse",
-    "slug": "orelse",
+    "name": "DailyBind",
+    "slug": "dailybind",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "orelse",
+    "scheme": "dailybind",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,

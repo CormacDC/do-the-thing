@@ -46,7 +46,7 @@ export async function registerForPushNotificationsAsync(): Promise<PushRegistrat
 
     return { ok: true, token };
   } catch (err) {
-    if (__DEV__) console.warn('[OrElse] push registration failed:', err);
+    if (__DEV__) console.warn('[DailyBind] push registration failed:', err);
     return {
       ok: false,
       reason: err instanceof Error ? err.message : 'Push registration failed.',
@@ -74,7 +74,7 @@ export async function savePushToken(userId: string, token: string): Promise<bool
   );
 
   if (error) {
-    if (__DEV__) console.warn('[OrElse] save push token failed:', error);
+    if (__DEV__) console.warn('[DailyBind] save push token failed:', error);
     return false;
   }
 

@@ -82,7 +82,7 @@ async function getMessagingServiceSid(creds: TwilioCredentials): Promise<string>
 
   const createResponse = await twilioFetch('https://messaging.twilio.com/v1/Services', creds, {
     method: 'POST',
-    body: new URLSearchParams({ FriendlyName: 'OrElse' }),
+    body: new URLSearchParams({ FriendlyName: 'DailyBind' }),
   });
   if (!createResponse.ok) {
     const text = await createResponse.text();

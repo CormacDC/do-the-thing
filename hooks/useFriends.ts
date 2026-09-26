@@ -109,7 +109,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
           );
 
           if (profileError) {
-            if (__DEV__) console.warn('[OrElse] friend profiles:', profileError);
+            if (__DEV__) console.warn('[DailyBind] friend profiles:', profileError);
             profiles = otherIds.map((id) => ({
               id,
               display_name: 'Friend',
@@ -124,7 +124,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
         setFriends(mapFriends(ownerId, friendshipRows, targets.partnerIds, profiles));
       } catch (err) {
         if (cancelled) return;
-        if (__DEV__) console.warn('[OrElse] load friends failed:', err);
+        if (__DEV__) console.warn('[DailyBind] load friends failed:', err);
         setError("We couldn't load your friends. Try again.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -157,7 +157,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
         setReloadKey((k) => k + 1);
         return true;
       } catch (err) {
-        if (__DEV__) console.warn('[OrElse] request friendship failed:', err);
+        if (__DEV__) console.warn('[DailyBind] request friendship failed:', err);
         const message =
           err && typeof err === 'object' && 'message' in err
             ? String((err as { message: string }).message)
@@ -183,7 +183,7 @@ export function useFriends(userId: string | null): UseFriendsResult {
         setReloadKey((k) => k + 1);
         return true;
       } catch (err) {
-        if (__DEV__) console.warn('[OrElse] respond friendship failed:', err);
+        if (__DEV__) console.warn('[DailyBind] respond friendship failed:', err);
         setMutationError("We couldn't update that friend request.");
         return false;
       }

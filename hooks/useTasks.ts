@@ -76,7 +76,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         setTasks((data ?? []).map(fromRow));
       } catch (err) {
         if (cancelled) return;
-        if (__DEV__) console.warn('[OrElse] load tasks failed:', err);
+        if (__DEV__) console.warn('[DailyBind] load tasks failed:', err);
         setError("We couldn't load your tasks. Pull to retry.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -116,7 +116,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         .single();
 
       if (insertError) {
-        if (__DEV__) console.warn('[OrElse] add task failed:', insertError);
+        if (__DEV__) console.warn('[DailyBind] add task failed:', insertError);
         setTasks(previous);
         setMutationError("We couldn't save that task. Try again.");
         return;
@@ -147,7 +147,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         .eq('user_id', userId);
 
       if (updateError) {
-        if (__DEV__) console.warn('[OrElse] update title failed:', updateError);
+        if (__DEV__) console.warn('[DailyBind] update title failed:', updateError);
         setTasks(previous);
         setMutationError("We couldn't update that task. Try again.");
         return false;
@@ -174,7 +174,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         .eq('user_id', userId);
 
       if (deleteError) {
-        if (__DEV__) console.warn('[OrElse] delete task failed:', deleteError);
+        if (__DEV__) console.warn('[DailyBind] delete task failed:', deleteError);
         setTasks(previous);
         setMutationError("We couldn't delete that task. Try again.");
         return false;
@@ -207,7 +207,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         .eq('user_id', userId);
 
       if (updateError) {
-        if (__DEV__) console.warn('[OrElse] toggle complete failed:', updateError);
+        if (__DEV__) console.warn('[DailyBind] toggle complete failed:', updateError);
         setTasks(previous);
         setMutationError("We couldn't update that task. Try again.");
         return false;
@@ -239,7 +239,7 @@ export function useTasks(userId: string | null): UseTasksResult {
         .eq('user_id', userId);
 
       if (updateError) {
-        if (__DEV__) console.warn('[OrElse] toggle priority failed:', updateError);
+        if (__DEV__) console.warn('[DailyBind] toggle priority failed:', updateError);
         setTasks(previous);
         setMutationError("We couldn't update that task. Try again.");
       }

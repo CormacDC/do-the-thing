@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
       const messages = tokens.map((to) => ({
         to,
-        title: 'OrElse',
+        title: 'DailyBind',
         body,
         sound: 'default' as const,
         data: { type: 'accountability', user_id: userId },

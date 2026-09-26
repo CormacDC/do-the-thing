@@ -206,7 +206,7 @@ export function TaskList() {
     <View style={[styles.container, { paddingBottom: bottomInset }]}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.title}>Do The Thing</Text>
+          <Text style={styles.title}>OrElse</Text>
           <IconButton
             icon={Settings}
             accessibilityLabel="Open settings"

@@ -54,7 +54,7 @@ export function useAccountabilityTargets(
         setPartnerIds((data ?? []).map((row) => row.partner_id));
       } catch (err) {
         if (cancelled) return;
-        if (__DEV__) console.warn('[Do The Thing] load targets failed:', err);
+        if (__DEV__) console.warn('[OrElse] load targets failed:', err);
         setError("We couldn't load notify targets. Try again.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -88,7 +88,7 @@ export function useAccountabilityTargets(
         setReloadKey((k) => k + 1);
         return true;
       } catch (err) {
-        if (__DEV__) console.warn('[Do The Thing] notify target failed:', err);
+        if (__DEV__) console.warn('[OrElse] notify target failed:', err);
         const message =
           err && typeof err === 'object' && 'message' in err
             ? String((err as { message: string }).message)

@@ -1,12 +1,12 @@
-# Do The Thing
+# OrElse
 
-A minimalist iOS accountability app built with Expo and React Native. Do The Thing strips away the complexity of traditional to-do apps and replaces it with a single, motivating question: what happens if you *don't* do it?
+A minimalist iOS accountability app built with Expo and React Native. OrElse strips away the complexity of traditional to-do apps and replaces it with a single, motivating question: what happens if you *don't* do it?
 
 ---
 
 ## The Idea
 
-Most productivity apps give you more ways to organize tasks than to actually do them. Do The Thing takes the opposite approach. Each morning you add your tasks, commit to a daily quota — the number you'll complete before midnight — and choose friends who also use the app. If you don't hit your quota by the time the clock strikes twelve, those friends get a push notification. That's it.
+Most productivity apps give you more ways to organize tasks than to actually do them. OrElse takes the opposite approach. Each morning you add your tasks, commit to a daily quota — the number you'll complete before midnight — and choose friends who also use the app. If you don't hit your quota by the time the clock strikes twelve, those friends get a push notification. That's it.
 
 The deadline is always midnight. There's no choosing a duration, no extensions, no grace period. You have today. Use it.
 
@@ -52,7 +52,7 @@ You can replace the default with a custom message during onboarding or in Settin
 
 ### Friends & Consent
 
-Accountability partners are other Do The Thing users linked by **friend code**. Friendship is mutual after accept. Being friends is not the same as being notified — you choose who receives the midnight push.
+Accountability partners are other OrElse users linked by **friend code**. Friendship is mutual after accept. Being friends is not the same as being notified — you choose who receives the midnight push.
 
 Friends must have the app installed and notification permission granted so their Expo push token can be stored. Explicit onboarding copy explains that selected friends will receive a push if you miss your quota.
 

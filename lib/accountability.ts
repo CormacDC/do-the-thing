@@ -18,14 +18,14 @@ function invokeSilent(functionName: AccountabilityFunction, userId: string): voi
       .invoke(functionName, { body: { user_id: userId } })
       .then(({ error }) => {
         if (error && __DEV__) {
-          console.warn(`[Do The Thing] ${functionName} failed:`, error);
+          console.warn(`[OrElse] ${functionName} failed:`, error);
         }
       })
       .catch((err: unknown) => {
-        if (__DEV__) console.warn(`[Do The Thing] ${functionName} failed:`, err);
+        if (__DEV__) console.warn(`[OrElse] ${functionName} failed:`, err);
       });
   } catch (err) {
-    if (__DEV__) console.warn(`[Do The Thing] ${functionName} failed:`, err);
+    if (__DEV__) console.warn(`[OrElse] ${functionName} failed:`, err);
   }
 }
 
@@ -59,7 +59,7 @@ export function cancelAccountability(userId: string): void {
 export function scheduleAccountabilitySms(userId: string): void {
   if (__DEV__) {
     console.warn(
-      `[Do The Thing] scheduleAccountabilitySms no-op (SMS disabled). userId=${userId}`,
+      `[OrElse] scheduleAccountabilitySms no-op (SMS disabled). userId=${userId}`,
     );
   }
 }
@@ -70,7 +70,7 @@ export function scheduleAccountabilitySms(userId: string): void {
 export function cancelAccountabilitySms(userId: string): void {
   if (__DEV__) {
     console.warn(
-      `[Do The Thing] cancelAccountabilitySms no-op (SMS disabled). userId=${userId}`,
+      `[OrElse] cancelAccountabilitySms no-op (SMS disabled). userId=${userId}`,
     );
   }
 }

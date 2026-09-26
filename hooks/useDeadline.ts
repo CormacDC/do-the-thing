@@ -88,7 +88,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         setDeadline(data ? fromRow(data) : null);
       } catch (err) {
         if (cancelled) return;
-        if (__DEV__) console.warn('[Do The Thing] load deadline failed:', err);
+        if (__DEV__) console.warn('[OrElse] load deadline failed:', err);
         setError("We couldn't load your deadline. Pull to retry.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -112,7 +112,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         .eq('user_id', userId);
 
       if (targetError) {
-        if (__DEV__) console.warn('[Do The Thing] confirmQuota targets:', targetError);
+        if (__DEV__) console.warn('[OrElse] confirmQuota targets:', targetError);
         setMutationError("We couldn't verify your friends. Try again.");
         return;
       }
@@ -159,7 +159,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         .single();
 
       if (upsertError) {
-        if (__DEV__) console.warn('[Do The Thing] confirmQuota failed:', upsertError);
+        if (__DEV__) console.warn('[OrElse] confirmQuota failed:', upsertError);
         setDeadline(previous);
         setMutationError("We couldn't save your quota. Try again.");
         return;
@@ -187,7 +187,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
 
     if (updateError) {
       if (__DEV__)
-        console.warn('[Do The Thing] incrementTasksCompletedToday failed:', updateError);
+        console.warn('[OrElse] incrementTasksCompletedToday failed:', updateError);
       setDeadline(previous);
       setMutationError("We couldn't update your progress. Try again.");
       return previous.tasksCompletedToday;
@@ -210,7 +210,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       .maybeSingle();
 
     if (freshError) {
-      if (__DEV__) console.warn('[Do The Thing] runDailyReset refresh failed:', freshError);
+      if (__DEV__) console.warn('[OrElse] runDailyReset refresh failed:', freshError);
       setMutationError("We couldn't process the daily reset. Try again.");
       return;
     }
@@ -260,7 +260,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         .eq('status', 'active');
 
       if (updateError) {
-        if (__DEV__) console.warn('[Do The Thing] runDailyReset failed:', updateError);
+        if (__DEV__) console.warn('[OrElse] runDailyReset failed:', updateError);
         setDeadline(previous);
         setMutationError("We couldn't process the daily reset. Try again.");
         return;
@@ -301,7 +301,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
 
       if (updateError) {
         if (__DEV__)
-          console.warn('[Do The Thing] runDailyReset (complete→active) failed:', updateError);
+          console.warn('[OrElse] runDailyReset (complete→active) failed:', updateError);
         setDeadline(previous);
         setMutationError("We couldn't start the new day. Try again.");
         return;
@@ -327,7 +327,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
         .eq('user_id', userId);
 
       if (updateError) {
-        if (__DEV__) console.warn('[Do The Thing] adjustQuota failed:', updateError);
+        if (__DEV__) console.warn('[OrElse] adjustQuota failed:', updateError);
         setDeadline(previous);
         setMutationError("We couldn't update your quota. Try again.");
       }
@@ -353,7 +353,7 @@ export function useDeadline(userId: string | null): UseDeadlineResult {
       .eq('user_id', userId);
 
     if (updateError) {
-      if (__DEV__) console.warn('[Do The Thing] markComplete failed:', updateError);
+      if (__DEV__) console.warn('[OrElse] markComplete failed:', updateError);
       setDeadline(previous);
       return;
     }

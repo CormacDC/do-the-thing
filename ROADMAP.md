@@ -1,4 +1,4 @@
-# Do The Thing — Build Roadmap
+# OrElse — Build Roadmap
 
 ## ✅ Sprint 0 — Project Setup
 

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Do The Thing",
-    "slug": "do-the-thing",
+    "name": "OrElse",
+    "slug": "orelse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dothething",
+    "scheme": "orelse",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,

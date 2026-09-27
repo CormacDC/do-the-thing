@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "DailyBind",
-    "slug": "dailybind",
+    "slug": "do-the-thing",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
